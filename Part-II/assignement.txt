@@ -1,0 +1,122 @@
+Part II. Deep Reinforcement Learning in a Pygame Arena (20 marks)
+In this part you will design a real time Pygame arena and train deep RL agents inside it using Stable Baselines3. The simulation must be your own design and must be visually animated. The agent will learn from a continuous observation vector and train with a neural network based algorithm.
+
+1- Environment requirements
+Your Pygame scene must include:
+
+A controllable player ship with movement and shooting
+
+Enemy spawners that periodically create enemies
+
+Enemies that navigate toward the player
+
+Player health
+
+Enemy health
+
+Projectile collisions
+
+A phase system where destroying all active spawners progresses the simulation to the next difficulty level
+
+The game must feel like a simplified action arena instead of a tile based grid. Movements should be continuous or semi continuous.
+All elements must be visual on screen.
+
+The episode ends when:
+
+The player dies
+
+A maximum time or step count is reached
+
+2 Gym style API
+Your environment must expose these methods:
+
+reset() returns an initial observation
+step(action) applies an action and returns observation, reward, done, info
+render() displays the scene for evaluation
+3 Observation design
+Your agent must receive a fixed size vector containing at least
+
+Player position
+
+Player velocity
+
+Player orientation if relevant
+
+Distance and relative direction to nearest enemy
+
+Distance and relative direction to nearest spawner
+
+Player health
+
+Current phase
+
+You might consider not using pixels or screenshots. Feature vectors are preferred and they must be numeric and fixed size.
+
+4 Action sets
+You must implement two distinct control schemes and train a separate agent for each one.
+
+Control style 1. Rotation movement and thrust
+
+No action
+
+Thrust forward
+
+Rotate left
+
+Rotate right
+
+Shoot
+
+Control style 2. Direct directional movement
+
+No action
+
+Move up
+
+Move down
+
+Move left
+
+Move right
+
+Shoot
+
+Each style must produce a trained model and an evaluation script.
+
+Each must produce a separate trained model.
+
+5 Reward function
+You must define a reward structure that encourages intentional progression, for example:
+
+Positive reward for destroying enemies
+
+Larger positive reward for destroying spawners
+
+Positive reward when progressing to the next phase
+
+Negative reward when taking damage
+
+Strong negative reward on death
+
+Optional shaping rewards must be justified
+
+Reward design is part of the assessment. You might use dditional shaping with justification.
+
+6 Deep RL training
+You are advised to use Stable Baselines3 with either:
+
+DQN
+
+PPO
+
+Expectations:
+
+Use neural networks with at least one hidden layer
+
+Train using Stable Baselines3 while logging results to TensorBoard
+
+Tune hyperparameters in a meaningful way
+
+Save trained models in a folder named models
+
+Provide an evaluation script able to visually play the agent in the arena

@@ -1,0 +1,6 @@
+# This directory is for trained model files
+# Example files:
+#   - rotation_ppo_final.zip
+#   - rotation_dqn_final.zip
+#   - directional_ppo_final.zip
+#   - directional_dqn_final.zip
