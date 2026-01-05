@@ -127,13 +127,13 @@ def make_levels() -> Dict[int, LevelSpec]:
     level2 = normalized_layout(
         center_layout(
             [
-                "S K     A   ",
-                " RRRR RRR   ",
-                "   A     C  ",
-                "   RRRR R   ",
+                "   S   A    ",
+                "  RRRR RRR  ",
+                "  K A   C   ",
+                "  RRRR R     ",
                 "   A   R    ",
-                "       R    ",
-                "   C   A    ",
+                "      R     ",
+                "   A        ",
                 "            ",
             ]
         )
@@ -141,11 +141,11 @@ def make_levels() -> Dict[int, LevelSpec]:
     level3 = normalized_layout(
         center_layout(
             [
-                "S   F   A   ",
-                " RRRRFRRR   ",
-                "   K   F C  ",
-                "   RRRR R   ",
-                " A   F   A  ",
+                "   S F A     ",
+                "  RRRRFRRR  ",
+                "  K   F C    ",
+                "  RRRR R     ",
+                " A   F   A   ",
                 " RRRR RRR   ",
                 "     A      ",
                 "            ",
@@ -155,12 +155,12 @@ def make_levels() -> Dict[int, LevelSpec]:
     level4 = normalized_layout(
         center_layout(
             [
-                "S   M   A   ",
-                " RRRR RRR   ",
-                "   A    F   ",
-                "   RRRR R   ",
-                "   A   M    ",
-                " RRRR RRR   ",
+                "   S M A     ",
+                "  RRRR RRR  ",
+                "    A   F   ",
+                "  RRRR R     ",
+                "    A  M    ",
+                "  RRRR RRR  ",
                 "     A      ",
                 "            ",
             ]
@@ -169,11 +169,11 @@ def make_levels() -> Dict[int, LevelSpec]:
     level5 = normalized_layout(
         center_layout(
             [
-                "S   M   A   ",
-                " RRRR RRR   ",
-                "   K   F C  ",
-                "   RRRR R   ",
-                " A   F   A  ",
+                "   S M A     ",
+                "  RRRR RRR  ",
+                "  K   F C    ",
+                "  RRRR R     ",
+                " A   F   A   ",
                 " RRRR RRR   ",
                 "   M   A    ",
                 "            ",
@@ -183,11 +183,11 @@ def make_levels() -> Dict[int, LevelSpec]:
     level6 = normalized_layout(
         center_layout(
             [
-                "S     A   A ",
+                "  S   A   A ",
                 "   RRRR R   ",
-                "   A     C  ",
+                " K A   C    ",
                 "   RRRR R   ",
-                " K     A    ",
+                " K    A     ",
                 "   RRRR R   ",
                 "     A   C  ",
                 "            ",
@@ -216,14 +216,14 @@ LEVEL_ORDER = sorted(LEVELS.keys())
 ALGO_NAMES = {"q": "Q-learning", "sarsa": "SARSA"}
 
 
-def log_episode(level_id: int, algo: str, ep: int, env_return: float, total_return: float, out_dir: str = "logs") -> None:
+def log_episode(level_id: int, algo: str, ep: int, env_return: float, total_return: float, steps: int, out_dir: str = "logs") -> None:
     """Append episode returns to a CSV file for plotting."""
     Path(out_dir).mkdir(exist_ok=True)
     path = Path(out_dir) / f"level{level_id}_{algo}.csv"
     if not path.exists():
-        path.write_text("episode,env_return,total_return\n", encoding="utf-8")
+        path.write_text("episode,env_return,total_return,steps\n", encoding="utf-8")
     with path.open("a", encoding="utf-8") as f:
-        f.write(f"{ep},{env_return},{total_return}\n")
+        f.write(f"{ep},{env_return},{total_return},{steps}\n")
 
 
 # -----------------------------
@@ -608,7 +608,7 @@ def run_training(start_level: int = 0):
                 draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label)
                 break
 
-        log_episode(current_level, spec.algo, ep, ep_reward_env, ep_reward_total)
+        log_episode(current_level, spec.algo, ep, ep_reward_env, ep_reward_total, steps)
         ep += 1
         if ep >= int(cfg["episodes"]):
             ep = 0  # keep running but restart episode counter
