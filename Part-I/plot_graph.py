@@ -1,10 +1,11 @@
 import argparse
 import csv
 import sys
+from pathlib import Path
 from typing import List, Tuple
 
 
-def read_log(path: str) -> Tuple[List[int], List[float], List[float], List[int]]:
+def read_log(path: Path | str) -> Tuple[List[int], List[float], List[float], List[int]]:
     episodes, env_returns, total_returns, steps = [], [], [], []
     with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -31,8 +32,9 @@ def rolling_mean(values: List[float], window: int) -> List[float]:
 
 def main():
     parser = argparse.ArgumentParser(description="Plot Level 6 intrinsic vs no-intrinsic returns")
-    parser.add_argument("--on", default="logs/level6_q_withReward.csv", help="CSV for intrinsic ON run")
-    parser.add_argument("--off", default="logs/level6_q_noReward.csv", help="CSV for intrinsic OFF run")
+    base_dir = Path(__file__).parent
+    parser.add_argument("--on", default=base_dir / "logs/level6_q_withReward.csv", help="CSV for intrinsic ON run")
+    parser.add_argument("--off", default=base_dir / "logs/level6_q_noReward.csv", help="CSV for intrinsic OFF run")
     parser.add_argument("--window", type=int, default=20, help="Rolling mean window (episodes)")
     args = parser.parse_args()
 

@@ -30,7 +30,8 @@ DEFAULT_CFG = {
 
 def load_config(level_id: int = 0) -> Dict[str, Any]:
     cfg = DEFAULT_CFG.copy()
-    path = os.path.join(os.path.dirname(__file__), f"config_level{level_id}.json")
+    base_dir = Path(__file__).parent
+    path = base_dir / f"config_level{level_id}.json"
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             cfg.update(json.load(f))
@@ -216,10 +217,12 @@ LEVEL_ORDER = sorted(LEVELS.keys())
 ALGO_NAMES = {"q": "Q-learning", "sarsa": "SARSA"}
 
 
-def log_episode(level_id: int, algo: str, ep: int, env_return: float, total_return: float, steps: int, out_dir: str = "logs") -> None:
+def log_episode(level_id: int, algo: str, ep: int, env_return: float, total_return: float, steps: int, out_dir: Path | None = None) -> None:
     """Append episode returns to a CSV file for plotting."""
-    Path(out_dir).mkdir(exist_ok=True)
-    path = Path(out_dir) / f"level{level_id}_{algo}.csv"
+    base_dir = Path(__file__).parent
+    log_dir = out_dir if out_dir is not None else base_dir / "logs"
+    Path(log_dir).mkdir(exist_ok=True)
+    path = log_dir / f"level{level_id}_{algo}.csv"
     if not path.exists():
         path.write_text("episode,env_return,total_return,steps\n", encoding="utf-8")
     with path.open("a", encoding="utf-8") as f:
