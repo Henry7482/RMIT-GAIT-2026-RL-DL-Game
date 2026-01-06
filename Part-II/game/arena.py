@@ -56,6 +56,10 @@ class Arena:
         self.score = 0
         self.done = False
         self.events = {}
+        
+        # Reset tracking for potential-based shaping
+        self._prev_target_angle_diff = None
+        self._prev_enemy_dist = None
 
         # Create initial spawners
         self._spawn_spawners(INITIAL_SPAWNERS)
@@ -142,8 +146,7 @@ class Arena:
         for particle in self.particles[:]:
             if not particle.update():
                 self.particles.remove(particle)
-
-        # Check collisions
+        # Check collisions (includes hit rewards)
         reward += self._check_collisions()
 
         # Check for player death
@@ -152,6 +155,65 @@ class Arena:
             self.events['death'] = 1
             self.done = True
             return reward
+
+        # =====================================================================
+        # AIMING REWARD SHAPING (Loose - Agent Chooses Target)
+        # Rewards improving aim toward WHICHEVER target agent is best aimed at
+        # This lets agent learn to prioritize one target at a time
+        # =====================================================================
+        
+        living_spawners = [s for s in self.spawners if s.alive]
+        living_enemies = [e for e in self.enemies if e.alive]
+        
+        # Helper to calculate angle difference to a target
+        def get_angle_diff(target):
+            dx = target.x - self.player.x
+            dy = target.y - self.player.y
+            target_angle = math.degrees(math.atan2(dy, dx))
+            player_angle = self.player.angle % 360
+            if player_angle > 180:
+                player_angle -= 360
+            diff = abs(target_angle - player_angle)
+            if diff > 180:
+                diff = 360 - diff
+            return diff
+        
+        # Find the target the agent is BEST aimed at (smallest angle difference)
+        # This lets the agent choose which target to focus on
+        all_targets = living_spawners + living_enemies
+        if all_targets:
+            best_target = min(all_targets, key=get_angle_diff)
+            angle_diff = get_angle_diff(best_target)
+            
+            # Potential-based: reward improvement in aim toward chosen target
+            if self._prev_target_angle_diff is not None:
+                angle_improvement = self._prev_target_angle_diff - angle_diff
+                reward += angle_improvement * REWARDS['aim_improvement']
+            
+            self._prev_target_angle_diff = angle_diff
+
+        # =====================================================================
+        # ENEMY AVOIDANCE SHAPING (Potential-Based)
+        # Rewards moving AWAY from nearest enemy, penalizes moving TOWARD
+        # No hardcoded threshold - agent learns optimal distance
+        # =====================================================================
+        
+        if living_enemies:
+            nearest_enemy = min(living_enemies, key=lambda e:
+                math.sqrt((e.x - self.player.x)**2 + (e.y - self.player.y)**2))
+            curr_enemy_dist = math.sqrt(
+                (nearest_enemy.x - self.player.x)**2 + 
+                (nearest_enemy.y - self.player.y)**2
+            )
+            
+            if self._prev_enemy_dist is not None:
+                # Positive = moved away, Negative = moved closer
+                distance_change = curr_enemy_dist - self._prev_enemy_dist
+                reward += distance_change * REWARDS['enemy_avoidance']
+            
+            self._prev_enemy_dist = curr_enemy_dist
+        else:
+            self._prev_enemy_dist = None
 
         # Check for phase completion
         active_spawners = [s for s in self.spawners if s.alive]
@@ -167,7 +229,7 @@ class Arena:
         if self.step_count >= MAX_STEPS:
             self.done = True
 
-        # Survival bonus
+        # Survival bonus (optional - currently disabled)
         reward += REWARDS['survival_bonus']
 
         return reward
@@ -194,6 +256,10 @@ class Arena:
                     projectile.alive = False
                     enemy.take_damage(projectile.damage)
                     self._spawn_particles(enemy.x, enemy.y, COLORS['enemy'], PARTICLE_COUNT_HIT)
+                    
+                    # Reward for hitting enemy (shaping)
+                    reward += REWARDS['hit_enemy']
+                    self.events['hit_enemy'] = self.events.get('hit_enemy', 0) + 1
 
                     if not enemy.alive:
                         reward += REWARDS['destroy_enemy']
@@ -224,6 +290,10 @@ class Arena:
                     projectile.alive = False
                     spawner.take_damage(projectile.damage)
                     self._spawn_particles(spawner.x, spawner.y, COLORS['spawner'], PARTICLE_COUNT_HIT)
+                    
+                    # Reward for hitting spawner (shaping)
+                    reward += REWARDS['hit_spawner']
+                    self.events['hit_spawner'] = self.events.get('hit_spawner', 0) + 1
 
                     if not spawner.alive:
                         reward += REWARDS['destroy_spawner']
@@ -278,59 +348,73 @@ class Arena:
         """
         Get the observation vector for RL agent.
         Returns a fixed-size vector of floats.
+        
+        Structure (14 values):
+        - Player state: 6 values (x, y, vx, vy, angle, health)
+        - Nearest enemy: 2 values (distance, relative angle)
+        - Nearest spawner: 2 values (distance, relative angle)
+        - Game state: 4 values (phase, enemy_count, spawner_count, can_shoot)
         """
         obs = []
 
-        # Normalize helper
+        # Normalize helpers
         def norm_x(x): return x / SCREEN_WIDTH
         def norm_y(y): return y / SCREEN_HEIGHT
+        max_dist = max(SCREEN_WIDTH, SCREEN_HEIGHT)
+        
+        def get_relative_angle(target_x, target_y):
+            """Get angle to target relative to player facing direction."""
+            dx = target_x - self.player.x
+            dy = target_y - self.player.y
+            target_angle = math.degrees(math.atan2(dy, dx))
+            # Normalize player angle to [-180, 180]
+            player_angle = self.player.angle % 360
+            if player_angle > 180:
+                player_angle -= 360
+            rel_angle = target_angle - player_angle
+            # Wrap to [-180, 180]
+            while rel_angle > 180:
+                rel_angle -= 360
+            while rel_angle < -180:
+                rel_angle += 360
+            return rel_angle / 180.0  # Normalize to [-1, 1]
 
         # Player state (6 values)
         obs.append(norm_x(self.player.x))
         obs.append(norm_y(self.player.y))
-        obs.append(self.player.vx / 10.0)  # Normalize velocity
+        obs.append(self.player.vx / 10.0)
         obs.append(self.player.vy / 10.0)
-        obs.append(self.player.angle / 360.0)  # Normalize angle
+        obs.append(self.player.angle / 360.0)
         obs.append(self.player.health / self.player.max_health)
 
         # Nearest enemy (2 values: distance, relative angle)
-        nearest_enemy_dist = 1.0
-        nearest_enemy_angle = 0.0
         living_enemies = [e for e in self.enemies if e.alive]
-
         if living_enemies:
             nearest = min(living_enemies, key=lambda e:
                 math.sqrt((e.x - self.player.x)**2 + (e.y - self.player.y)**2))
-            dx = nearest.x - self.player.x
-            dy = nearest.y - self.player.y
-            dist = math.sqrt(dx**2 + dy**2)
-            nearest_enemy_dist = min(dist / max(SCREEN_WIDTH, SCREEN_HEIGHT), 1.0)
-            nearest_enemy_angle = (math.degrees(math.atan2(dy, dx)) - self.player.angle) / 180.0
-
-        obs.append(nearest_enemy_dist)
-        obs.append(nearest_enemy_angle)
+            dist = math.sqrt((nearest.x - self.player.x)**2 + (nearest.y - self.player.y)**2)
+            obs.append(min(dist / max_dist, 1.0))
+            obs.append(get_relative_angle(nearest.x, nearest.y))
+        else:
+            obs.append(1.0)  # Max distance
+            obs.append(0.0)  # Neutral angle
 
         # Nearest spawner (2 values: distance, relative angle)
-        nearest_spawner_dist = 1.0
-        nearest_spawner_angle = 0.0
         living_spawners = [s for s in self.spawners if s.alive]
-
         if living_spawners:
             nearest = min(living_spawners, key=lambda s:
                 math.sqrt((s.x - self.player.x)**2 + (s.y - self.player.y)**2))
-            dx = nearest.x - self.player.x
-            dy = nearest.y - self.player.y
-            dist = math.sqrt(dx**2 + dy**2)
-            nearest_spawner_dist = min(dist / max(SCREEN_WIDTH, SCREEN_HEIGHT), 1.0)
-            nearest_spawner_angle = (math.degrees(math.atan2(dy, dx)) - self.player.angle) / 180.0
-
-        obs.append(nearest_spawner_dist)
-        obs.append(nearest_spawner_angle)
+            dist = math.sqrt((nearest.x - self.player.x)**2 + (nearest.y - self.player.y)**2)
+            obs.append(min(dist / max_dist, 1.0))
+            obs.append(get_relative_angle(nearest.x, nearest.y))
+        else:
+            obs.append(1.0)  # Max distance
+            obs.append(0.0)  # Neutral angle
 
         # Game state (4 values)
         obs.append(self.phase / MAX_PHASE)
-        obs.append(min(len(living_enemies) / 20.0, 1.0))  # Normalized enemy count
-        obs.append(min(len(living_spawners) / 10.0, 1.0))  # Normalized spawner count
+        obs.append(min(len(living_enemies) / 20.0, 1.0))
+        obs.append(min(len(living_spawners) / 10.0, 1.0))
         obs.append(1.0 if self.player.can_shoot() else 0.0)
 
         return obs

@@ -69,17 +69,19 @@ STEP_PENALTY = 0.0  # Penalty per step (to encourage faster completion)
 
 # Reward values
 REWARDS = {
-    'destroy_enemy': 10.0,
-    'destroy_spawner': 50.0,
-    'phase_complete': 100.0,
-    'take_damage': -5.0,
-    'death': -100.0,
-    'survival_bonus': 0.1,  # Per step alive
-    'approach_enemy': 0.0,  # Optional shaping
-    'approach_spawner': 0.0,  # Optional shaping
+    'destroy_enemy': 10.0, 
+    'destroy_spawner': 100.0,
+    'phase_complete': 200.0,
+    'take_damage': -50.0,
+    'death': -200.0,
+    'survival_bonus': -0.01,
+    'hit_enemy': 2.0,
+    'hit_spawner': 5.0,
+    'aim_improvement': 0.02,       # Per degree improvement in aim
+    'enemy_avoidance': 0.005,      # Per pixel moved away from nearest enemy (potential-based)
 }
 
-# Observation space size
+# Observation space size (14 values)
 # Player: x, y, vx, vy, angle, health (6)
 # Nearest enemy: distance, angle (2)
 # Nearest spawner: distance, angle (2)

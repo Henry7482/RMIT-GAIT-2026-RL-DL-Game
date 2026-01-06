@@ -156,3 +156,7 @@ Builds/
 
 # Gradle (if Android)
 .gradle/
+
+Part-II/logs
+Part-II/models/directional_dqn_checkpoints
+Part-II/models/rotation_dqn_checkpoints
