@@ -60,7 +60,7 @@ def plot_training_metrics(ea, save_path=None):
     tags = ea.Tags()['scalars']
     print(f"\nAvailable metrics: {tags}")
     
-    # Define metrics to plot (including evaluation metrics)
+    # Define metrics to plot (including evaluation and game metrics)
     metrics_to_plot = {
         'rollout/ep_rew_mean': 'Training Reward',
         'eval/mean_reward': 'Evaluation Reward',
@@ -68,6 +68,8 @@ def plot_training_metrics(ea, save_path=None):
         'eval/mean_ep_length': 'Evaluation Episode Length',
         'train/loss': 'Training Loss',
         'rollout/exploration_rate': 'Exploration Rate',
+        'game/score_mean': 'Game Score',
+        'game/phase_mean': 'Game Phase',
     }
     
     # Filter to only available metrics
@@ -77,11 +79,11 @@ def plot_training_metrics(ea, save_path=None):
         print("No standard metrics found in logs.")
         return
     
-    # Create subplots in 3x2 grid layout
+    # Create subplots in 4x2 grid layout to accommodate game metrics
     n_metrics = len(available_metrics)
-    n_rows = 3
+    n_rows = 4
     n_cols = 2
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 10))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(20, 8))
     axes = axes.flatten()  # Flatten to 1D array for easy indexing
     
     # Plot each metric
@@ -176,6 +178,26 @@ def print_summary(ea):
                 print(f"  ⚠️  Policy relies on exploration to succeed")
             else:
                 print(f"  ✅ Policy performs better without exploration")
+    
+    # Game Score (custom metric)
+    if 'game/score_mean' in tags:
+        scores = ea.Scalars('game/score_mean')
+        if scores:
+            values = [s.value for s in scores]
+            print(f"\nGame Score:")
+            print(f"  Initial: {values[0]:.1f}")
+            print(f"  Final:   {values[-1]:.1f}")
+            print(f"  Best:    {max(values):.1f}")
+    
+    # Game Phase (custom metric)
+    if 'game/phase_mean' in tags:
+        phases = ea.Scalars('game/phase_mean')
+        if phases:
+            values = [p.value for p in phases]
+            print(f"\nGame Phase:")
+            print(f"  Initial: {values[0]:.1f}")
+            print(f"  Final:   {values[-1]:.1f}")
+            print(f"  Best:    {max(values):.1f}")
     
     print("=" * 60)
 
