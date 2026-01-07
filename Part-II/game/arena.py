@@ -11,7 +11,7 @@ from .constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, COLORS,
     INITIAL_SPAWNERS, SPAWNERS_PER_PHASE, MAX_PHASE,
     MAX_STEPS, REWARDS, OBSERVATION_SIZE,
-    PARTICLE_COUNT_EXPLOSION, PARTICLE_COUNT_HIT,
+    PARTICLE_COUNT_EXPLOSION, PARTICLE_COUNT_HIT, PLAYER_SHOOT_COOLDOWN,
 )
 from .entities import Player, Enemy, Spawner, Projectile, Particle
 
@@ -157,9 +157,11 @@ class Arena:
             return reward
 
         # =====================================================================
-        # AIMING REWARD SHAPING (Loose - Agent Chooses Target)
-        # Rewards improving aim toward WHICHEVER target agent is best aimed at
-        # This lets agent learn to prioritize one target at a time
+        # THREAT-WEIGHTED AIMING BONUS
+        # Close enemies: high bonus (threat response, self-defense)
+        # Spawners: medium fixed bonus (progress)
+        # Far enemies: low bonus (less urgent)
+        # Priority: close enemy > spawner > far enemy
         # =====================================================================
         
         living_spawners = [s for s in self.spawners if s.alive]
@@ -178,42 +180,42 @@ class Arena:
                 diff = 360 - diff
             return diff
         
-        # Find the target the agent is BEST aimed at (smallest angle difference)
-        # This lets the agent choose which target to focus on
-        all_targets = living_spawners + living_enemies
-        if all_targets:
-            best_target = min(all_targets, key=get_angle_diff)
-            angle_diff = get_angle_diff(best_target)
-            
-            # Potential-based: reward improvement in aim toward chosen target
-            if self._prev_target_angle_diff is not None:
-                angle_improvement = self._prev_target_angle_diff - angle_diff
-                reward += angle_improvement * REWARDS['aim_improvement']
-            
-            self._prev_target_angle_diff = angle_diff
-
+        # Helper to calculate distance to a target
+        def get_distance(target):
+            return math.sqrt((target.x - self.player.x)**2 + (target.y - self.player.y)**2)
+        
         # =====================================================================
-        # ENEMY AVOIDANCE SHAPING (Potential-Based)
-        # Rewards moving AWAY from nearest enemy, penalizes moving TOWARD
-        # No hardcoded threshold - agent learns optimal distance
+        # SIMPLE AIMING BONUS
+        # Agent gets bonus when facing within threshold of ANY target
+        # Provides dense feedback to help learn aiming
         # =====================================================================
         
-        if living_enemies:
-            nearest_enemy = min(living_enemies, key=lambda e:
-                math.sqrt((e.x - self.player.x)**2 + (e.y - self.player.y)**2))
-            curr_enemy_dist = math.sqrt(
-                (nearest_enemy.x - self.player.x)**2 + 
-                (nearest_enemy.y - self.player.y)**2
-            )
-            
-            if self._prev_enemy_dist is not None:
-                # Positive = moved away, Negative = moved closer
-                distance_change = curr_enemy_dist - self._prev_enemy_dist
-                reward += distance_change * REWARDS['enemy_avoidance']
-            
-            self._prev_enemy_dist = curr_enemy_dist
-        else:
-            self._prev_enemy_dist = None
+        aim_threshold = REWARDS['aim_threshold']
+        aimed_bonus = REWARDS['aimed_at_target']
+        
+        # Check if aimed at any enemy
+        aimed_at_something = False
+        for enemy in living_enemies:
+            if get_angle_diff(enemy) < aim_threshold:
+                reward += aimed_bonus
+                aimed_at_something = True
+                break
+        
+        # If not aimed at enemy, check spawners
+        if not aimed_at_something:
+            for spawner in living_spawners:
+                if get_angle_diff(spawner) < aim_threshold:
+                    reward += aimed_bonus
+                    break
+
+        # =====================================================================
+        # STATIONARY PENALTY (Encourages Movement)
+        # Uses configurable threshold from constants
+        # =====================================================================
+        
+        player_speed = math.sqrt(self.player.vx**2 + self.player.vy**2)
+        if player_speed < REWARDS['stationary_speed_threshold']:
+            reward += REWARDS['stationary_penalty']
 
         # Check for phase completion
         active_spawners = [s for s in self.spawners if s.alive]
@@ -349,10 +351,10 @@ class Arena:
         Get the observation vector for RL agent.
         Returns a fixed-size vector of floats.
         
-        Structure (14 values):
+        Structure (16 values):
         - Player state: 6 values (x, y, vx, vy, angle, health)
-        - Nearest enemy: 2 values (distance, relative angle)
-        - Nearest spawner: 2 values (distance, relative angle)
+        - Nearest enemy: 3 values (distance, relative angle, health_ratio)
+        - Nearest spawner: 3 values (distance, relative angle, health_ratio)
         - Game state: 4 values (phase, enemy_count, spawner_count, can_shoot)
         """
         obs = []
@@ -387,7 +389,7 @@ class Arena:
         obs.append(self.player.angle / 360.0)
         obs.append(self.player.health / self.player.max_health)
 
-        # Nearest enemy (2 values: distance, relative angle)
+        # Nearest enemy (3 values: distance, relative angle, health_ratio)
         living_enemies = [e for e in self.enemies if e.alive]
         if living_enemies:
             nearest = min(living_enemies, key=lambda e:
@@ -395,11 +397,13 @@ class Arena:
             dist = math.sqrt((nearest.x - self.player.x)**2 + (nearest.y - self.player.y)**2)
             obs.append(min(dist / max_dist, 1.0))
             obs.append(get_relative_angle(nearest.x, nearest.y))
+            obs.append(nearest.health / nearest.max_health)  # Health ratio
         else:
             obs.append(1.0)  # Max distance
             obs.append(0.0)  # Neutral angle
+            obs.append(0.0)  # No enemy
 
-        # Nearest spawner (2 values: distance, relative angle)
+        # Nearest spawner (3 values: distance, relative angle, health_ratio)
         living_spawners = [s for s in self.spawners if s.alive]
         if living_spawners:
             nearest = min(living_spawners, key=lambda s:
@@ -407,9 +411,11 @@ class Arena:
             dist = math.sqrt((nearest.x - self.player.x)**2 + (nearest.y - self.player.y)**2)
             obs.append(min(dist / max_dist, 1.0))
             obs.append(get_relative_angle(nearest.x, nearest.y))
+            obs.append(nearest.health / nearest.max_health)  # Health ratio
         else:
             obs.append(1.0)  # Max distance
             obs.append(0.0)  # Neutral angle
+            obs.append(0.0)  # No spawner
 
         # Game state (4 values)
         obs.append(self.phase / MAX_PHASE)

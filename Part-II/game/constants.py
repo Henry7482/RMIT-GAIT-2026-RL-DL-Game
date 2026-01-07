@@ -34,9 +34,9 @@ PLAYER_MAX_HEALTH = 100
 PLAYER_SPEED = 5.0  # For directional movement
 PLAYER_THRUST = 0.3  # For rotation movement
 PLAYER_MAX_VELOCITY = 6.0
-PLAYER_ROTATION_SPEED = 5.0  # Degrees per frame
+PLAYER_ROTATION_SPEED = 5.0  # Degrees per frame (increased for better tracking)
 PLAYER_FRICTION = 0.98
-PLAYER_SHOOT_COOLDOWN = 15  # Frames between shots
+PLAYER_SHOOT_COOLDOWN = 10  # Frames between shots
 PLAYER_INVINCIBILITY_FRAMES = 30  # Frames of invincibility after hit
 
 # Projectile settings
@@ -69,24 +69,30 @@ STEP_PENALTY = 0.0  # Penalty per step (to encourage faster completion)
 
 # Reward values
 REWARDS = {
-    'destroy_enemy': 10.0, 
-    'destroy_spawner': 100.0,
-    'phase_complete': 200.0,
-    'take_damage': -50.0,
-    'death': -200.0,
-    'survival_bonus': -0.01,
-    'hit_enemy': 2.0,
-    'hit_spawner': 5.0,
-    'aim_improvement': 0.02,       # Per degree improvement in aim
-    'enemy_avoidance': 0.005,      # Per pixel moved away from nearest enemy (potential-based)
+    # Core rewards (sparse, clear signal)
+    'destroy_enemy': 50.0,
+    'destroy_spawner': 200.0,
+    'phase_complete': 400.0,
+    'hit_enemy': 10.0,
+    'hit_spawner': 25.0,
+    # Penalties
+    'take_damage': -40.0,
+    'death': -100.0,
+    'survival_bonus': -0.5,
+    # Simple aiming feedback (within 20 degrees of target)
+    'aimed_at_target': 0.05,
+    'aim_threshold': 20.0,
+    # Movement incentives
+    'stationary_speed_threshold': 0.5,
+    'stationary_penalty': -0.03,
 }
 
-# Observation space size (14 values)
+# Observation space size (16 values)
 # Player: x, y, vx, vy, angle, health (6)
-# Nearest enemy: distance, angle (2)
-# Nearest spawner: distance, angle (2)
+# Nearest enemy: distance, angle, health_ratio (3)
+# Nearest spawner: distance, angle, health_ratio (3)
 # Game state: phase, enemies_count, spawners_count, can_shoot (4)
-OBSERVATION_SIZE = 14
+OBSERVATION_SIZE = 16
 
 # Action spaces
 ROTATION_ACTIONS = {
