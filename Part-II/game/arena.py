@@ -351,10 +351,10 @@ class Arena:
         Get the observation vector for RL agent.
         Returns a fixed-size vector of floats.
         
-        Structure (16 values):
+        Structure (14 values):
         - Player state: 6 values (x, y, vx, vy, angle, health)
-        - Nearest enemy: 3 values (distance, relative angle, health_ratio)
-        - Nearest spawner: 3 values (distance, relative angle, health_ratio)
+        - Nearest enemy: 2 values (distance, relative angle)
+        - Nearest spawner: 2 values (distance, relative angle)
         - Game state: 4 values (phase, enemy_count, spawner_count, can_shoot)
         """
         obs = []
@@ -389,7 +389,7 @@ class Arena:
         obs.append(self.player.angle / 360.0)
         obs.append(self.player.health / self.player.max_health)
 
-        # Nearest enemy (3 values: distance, relative angle, health_ratio)
+        # Nearest enemy (2 values: distance, relative angle)
         living_enemies = [e for e in self.enemies if e.alive]
         if living_enemies:
             nearest = min(living_enemies, key=lambda e:
@@ -397,13 +397,11 @@ class Arena:
             dist = math.sqrt((nearest.x - self.player.x)**2 + (nearest.y - self.player.y)**2)
             obs.append(min(dist / max_dist, 1.0))
             obs.append(get_relative_angle(nearest.x, nearest.y))
-            obs.append(nearest.health / nearest.max_health)  # Health ratio
         else:
             obs.append(1.0)  # Max distance
             obs.append(0.0)  # Neutral angle
-            obs.append(0.0)  # No enemy
 
-        # Nearest spawner (3 values: distance, relative angle, health_ratio)
+        # Nearest spawner (2 values: distance, relative angle)
         living_spawners = [s for s in self.spawners if s.alive]
         if living_spawners:
             nearest = min(living_spawners, key=lambda s:
@@ -411,11 +409,9 @@ class Arena:
             dist = math.sqrt((nearest.x - self.player.x)**2 + (nearest.y - self.player.y)**2)
             obs.append(min(dist / max_dist, 1.0))
             obs.append(get_relative_angle(nearest.x, nearest.y))
-            obs.append(nearest.health / nearest.max_health)  # Health ratio
         else:
             obs.append(1.0)  # Max distance
             obs.append(0.0)  # Neutral angle
-            obs.append(0.0)  # No spawner
 
         # Game state (4 values)
         obs.append(self.phase / MAX_PHASE)

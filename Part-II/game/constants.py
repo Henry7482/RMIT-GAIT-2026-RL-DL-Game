@@ -87,12 +87,12 @@ REWARDS = {
     'stationary_penalty': -0.03,
 }
 
-# Observation space size (16 values)
+# Observation space size (14 values)
 # Player: x, y, vx, vy, angle, health (6)
-# Nearest enemy: distance, angle, health_ratio (3)
-# Nearest spawner: distance, angle, health_ratio (3)
+# Nearest enemy: distance, angle (2)
+# Nearest spawner: distance, angle (2)
 # Game state: phase, enemies_count, spawners_count, can_shoot (4)
-OBSERVATION_SIZE = 16
+OBSERVATION_SIZE = 14
 
 # Action spaces
 ROTATION_ACTIONS = {

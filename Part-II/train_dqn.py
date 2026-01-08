@@ -215,13 +215,13 @@ def main():
                        help='Environment type (rotation or directional)')
     
     # Training arguments
-    parser.add_argument('--timesteps', type=int, default=3000000,
+    parser.add_argument('--timesteps', type=int, default=10000000,
                        help='Total training timesteps')
     parser.add_argument('--lr', type=float, default=5e-6,
                        help='Learning rate')
     
     # DQN-specific arguments
-    parser.add_argument('--buffer_size', type=int, default=1000000,
+    parser.add_argument('--buffer_size', type=int, default=3000000,
                        help='Size of the replay buffer')
     parser.add_argument('--learning_starts', type=int, default=1000,
                        help='Number of steps before learning starts')
