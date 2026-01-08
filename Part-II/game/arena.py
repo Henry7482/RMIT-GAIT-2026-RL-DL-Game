@@ -185,28 +185,30 @@ class Arena:
             return math.sqrt((target.x - self.player.x)**2 + (target.y - self.player.y)**2)
         
         # =====================================================================
-        # SIMPLE AIMING BONUS
-        # Agent gets bonus when facing within threshold of ANY target
-        # Provides dense feedback to help learn aiming
+        # NEAREST ENEMY AIMING BONUS
+        # ONLY rewards aiming at the NEAREST enemy (not any enemy)
+        # Higher bonus to encourage committing to one target
         # =====================================================================
         
         aim_threshold = REWARDS['aim_threshold']
-        aimed_bonus = REWARDS['aimed_at_target']
+        aimed_nearest_bonus = REWARDS['aimed_at_nearest_enemy']
+        aimed_spawner_bonus = REWARDS['aimed_at_target']
         
-        # Check if aimed at any enemy
-        aimed_at_something = False
-        for enemy in living_enemies:
-            if get_angle_diff(enemy) < aim_threshold:
-                reward += aimed_bonus
-                aimed_at_something = True
-                break
+        # Priority: Nearest enemy > Spawner
+        aims_rewarded = False
         
-        # If not aimed at enemy, check spawners
-        if not aimed_at_something:
-            for spawner in living_spawners:
-                if get_angle_diff(spawner) < aim_threshold:
-                    reward += aimed_bonus
-                    break
+        # Check if aimed at NEAREST enemy only (not any enemy)
+        if living_enemies:
+            nearest_enemy = min(living_enemies, key=get_distance)
+            if get_angle_diff(nearest_enemy) < aim_threshold:
+                reward += aimed_nearest_bonus  # Higher bonus for nearest
+                aims_rewarded = True
+        
+        # If not aimed at nearest enemy, check nearest spawner (lower priority)
+        if not aims_rewarded and living_spawners:
+            nearest_spawner = min(living_spawners, key=get_distance)
+            if get_angle_diff(nearest_spawner) < aim_threshold:
+                reward += aimed_spawner_bonus
 
         # =====================================================================
         # STATIONARY PENALTY (Encourages Movement)

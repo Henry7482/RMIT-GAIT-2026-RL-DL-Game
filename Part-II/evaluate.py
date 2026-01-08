@@ -4,9 +4,17 @@ Evaluation script for trained Deep RL agents.
 Runs the trained model with visual rendering.
 
 Usage:
+    If the trainning curve reaches convergence, use the final model:
     python evaluate.py --model models/rotation_ppo_final.zip --env rotation
     python evaluate.py --model models/directional_dqn_final.zip --env directional
-    python evaluate.py --random --env rotation  # Test with random actions
+    
+    If the trainning curve does not reach convergence, use the best model:
+    python evaluate.py --model models/rotation_ppo_best.zip --env rotation
+    python evaluate.py --model models/directional_dqn_best.zip --env directional
+
+    Test with random actions:
+    python evaluate.py --random --env rotation  
+
 """
 
 import sys

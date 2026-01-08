@@ -4,8 +4,8 @@ Simple script to visualize training logs without TensorBoard.
 Reads TensorFlow event files and plots training metrics.
 
 Usage:
-    python view_logs.py
-    python view_logs.py --logdir logs/rotation_dqn_20260105_214256
+    python view_logs.py (newest log)
+    python view_logs.py --logdir logs/rotation_dqn_20260105_214256 (specific log)
 """
 
 import argparse

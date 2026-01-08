@@ -70,21 +70,22 @@ STEP_PENALTY = 0.0  # Penalty per step (to encourage faster completion)
 # Reward values
 REWARDS = {
     # Core rewards (sparse, clear signal)
-    'destroy_enemy': 50.0,
-    'destroy_spawner': 200.0,
-    'phase_complete': 400.0,
-    'hit_enemy': 10.0,
-    'hit_spawner': 25.0,
+    'destroy_enemy': 50.0,          # Reward for destroying an enemy
+    'destroy_spawner': 100.0,       # Reward for destroying a spawner
+    'phase_complete': 400.0,        # Reward for completing a phase
+    'hit_enemy': 10.0,              # Reward for hitting an enemy
+    'hit_spawner': 25.0,            # Reward for hitting a spawner
     # Penalties
-    'take_damage': -40.0,
-    'death': -100.0,
-    'survival_bonus': -0.5,
-    # Simple aiming feedback (within 20 degrees of target)
-    'aimed_at_target': 0.05,
-    'aim_threshold': 20.0,
+    'take_damage': -80.0,           # Penalty for taking damage
+    'death': -100.0,                # Penalty for death
+    'survival_bonus': -0.5,         # Encourage faster phase completion
+    # Aiming feedback
+    'aimed_at_nearest_enemy': 0.1,  # Higher bonus for focusing on nearest threat
+    'aimed_at_target': 0.05,        # Lower bonus for spawners
+    'aim_threshold': 20.0,          # Lower threshold for aiming bonus
     # Movement incentives
     'stationary_speed_threshold': 0.5,
-    'stationary_penalty': -0.03,
+    'stationary_penalty': -0.03,    # Penalty for not moving to encourage enemy avoidance and spawner pursuit
 }
 
 # Observation space size (14 values)

@@ -3,8 +3,12 @@
 Training script for Deep Q-Network (DQN) agents.
 
 Usage:
-    python train_dqn.py --env rotation --timesteps 100000
-    python train_dqn.py --env directional --timesteps 500000
+    Edit the default arguments in the parser to change the training parameters.
+    python train_dqn.py --env rotation --curriculum
+    python train_dqn.py --env rotation --curriculum
+
+    Or run with command line arguments:
+    python train_dqn.py --env rotation --curriculum --timesteps 100000
 """
 
 import sys
@@ -23,6 +27,29 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 
 from envs.rotation_env import RotationArenaEnv
 from envs.directional_env import DirectionalArenaEnv
+
+
+def linear_schedule(initial_value: float, final_value: float = None):
+    """
+    Linear learning rate schedule.
+    
+    Args:
+        initial_value: Starting learning rate
+        final_value: Ending learning rate (default: 10% of initial)
+    
+    Returns:
+        A function that computes the current learning rate given progress.
+    """
+    if final_value is None:
+        final_value = initial_value * 0.1  # Decay to 10% by default
+    
+    def func(progress_remaining: float) -> float:
+        """
+        Progress remaining goes from 1.0 (start) to 0.0 (end).
+        """
+        return final_value + progress_remaining * (initial_value - final_value)
+    
+    return func
 
 
 class GameMetricsCallback(BaseCallback):
@@ -126,11 +153,14 @@ def train(args):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     log_dir = f"{logs_dir}/{args.env}_dqn_{timestamp}"
 
-    # Create DQN model
+    # Create DQN model with learning rate schedule
+    lr_schedule = linear_schedule(args.lr, args.lr * 0.1)  # Decay to 10%
+    print(f"Learning rate schedule: {args.lr} -> {args.lr * 0.1}")
+    
     model = DQN(
         "MlpPolicy",
         vec_env,
-        learning_rate=args.lr,
+        learning_rate=lr_schedule,
         buffer_size=args.buffer_size,
         learning_starts=args.learning_starts,
         batch_size=args.batch_size,
@@ -215,7 +245,7 @@ def main():
                        help='Environment type (rotation or directional)')
     
     # Training arguments
-    parser.add_argument('--timesteps', type=int, default=10000000,
+    parser.add_argument('--timesteps', type=int, default=8000000,
                        help='Total training timesteps')
     parser.add_argument('--lr', type=float, default=5e-6,
                        help='Learning rate')
@@ -239,7 +269,7 @@ def main():
                        help='Update target network every N steps')
     
     # Exploration arguments
-    parser.add_argument('--exploration_fraction', type=float, default=0.5,
+    parser.add_argument('--exploration_fraction', type=float, default=0.7,
                        help='Fraction of training for epsilon exploration decay')
     parser.add_argument('--exploration_initial_eps', type=float, default=1.0,
                        help='Initial exploration epsilon')
