@@ -23,7 +23,7 @@ from envs.rotation_env import RotationArenaEnv
 from envs.directional_env import DirectionalArenaEnv
 
 # TODO: Uncomment when implementing
-# from stable_baselines3 import PPO, DQN
+from stable_baselines3 import PPO, DQN
 
 
 def create_env(env_type: str, render_mode: str = 'human'):
@@ -42,17 +42,17 @@ def load_model(model_path: str):
 
     TODO: Implement model loading
     """
-    # Determine algorithm from filename or try both
-    # if 'ppo' in model_path.lower():
-    #     return PPO.load(model_path)
-    # elif 'dqn' in model_path.lower():
-    #     return DQN.load(model_path)
-    # else:
-    #     # Try PPO first, then DQN
-    #     try:
-    #         return PPO.load(model_path)
-    #     except:
-    #         return DQN.load(model_path)
+    #Determine algorithm from filename or try both
+    if 'ppo' in model_path.lower():
+        return PPO.load(model_path)
+    elif 'dqn' in model_path.lower():
+        return DQN.load(model_path)
+    else:
+        # Try PPO first, then DQN
+        try:
+            return PPO.load(model_path)
+        except:
+            return DQN.load(model_path)
     raise NotImplementedError("Model loading not yet implemented. Train a model first.")
 
 

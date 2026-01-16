@@ -21,7 +21,7 @@ class RotationArenaEnv(BaseArenaEnv):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(env_type='rotation', **kwargs)
 
         # 5 discrete actions: nothing, thrust, rotate_left, rotate_right, shoot
         self.action_space = spaces.Discrete(5)
@@ -38,6 +38,9 @@ class RotationArenaEnv(BaseArenaEnv):
     def _apply_action(self, action: int) -> None:
         """Apply rotation-based action to the player."""
         player = self.arena.player
+        
+        # Track current action for stuck rotation logic
+        self.arena.current_action = action
 
         if action == 0:
             # No action - just drift
@@ -45,6 +48,7 @@ class RotationArenaEnv(BaseArenaEnv):
         elif action == 1:
             # Thrust forward
             player.apply_thrust()
+            self.arena.events['thrust_action'] = 1  # Track for stuck detection
         elif action == 2:
             # Rotate left (counter-clockwise)
             player.rotate_left()

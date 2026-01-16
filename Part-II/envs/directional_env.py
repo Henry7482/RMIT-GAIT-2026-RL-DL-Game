@@ -22,7 +22,7 @@ class DirectionalArenaEnv(BaseArenaEnv):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(env_type='directional', **kwargs)
 
         # 6 discrete actions: nothing, up, down, left, right, shoot
         self.action_space = spaces.Discrete(6)
@@ -40,6 +40,9 @@ class DirectionalArenaEnv(BaseArenaEnv):
     def _apply_action(self, action: int) -> None:
         """Apply directional action to the player."""
         player = self.arena.player
+
+        # Track current action for stuck movement logic
+        self.arena.current_action = action
 
         if action == 0:
             # No action - stop moving
