@@ -15,7 +15,7 @@ def read_log(path: Path | str) -> Tuple[List[int], List[float], List[float], Lis
             total_returns.append(float(row["total_return"]))
             steps.append(int(row.get("steps", 0)))
     return episodes, env_returns, total_returns, steps
-
+    
 
 def rolling_mean(values: List[float], window: int) -> List[float]:
     if window <= 1 or not values:

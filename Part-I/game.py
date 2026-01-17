@@ -1,43 +1,14 @@
 import argparse
-import json
-import os
 import random
 from collections import defaultdict
-from pathlib import Path
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import pygame
 
-# -----------------------------
-# Configuration loader
-# -----------------------------
-DEFAULT_CFG = {
-    "episodes": 800,
-    "alpha": 0.2,
-    "gamma": 0.95,
-    "epsilonStart": 1.0,
-    "epsilonEnd": 0.05,
-    "epsilonDecayEpisodes": 700,
-    "maxStepsPerEpisode": 400,
-    "fpsVisual": 30,
-    "fpsFast": 2400,
-    "tileSize": 48,
-    "seed": 42,
-    "intrinsicScale": 0.3,
-}
-
-
-def load_config(level_id: int = 0) -> Dict[str, Any]:
-    cfg = DEFAULT_CFG.copy()
-    base_dir = Path(__file__).parent
-    path = base_dir / f"config_level{level_id}.json"
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            cfg.update(json.load(f))
-        print(f"Loaded config_level{level_id}.json")
-    return cfg
-
+from config import DEFAULT_CFG, load_config
+from levels import ALGO_NAMES, LEVELS, LEVEL_ORDER, LevelSpec, WIDTH_TILES, HEIGHT_TILES
 
 CFG0 = load_config(0)
 random.seed(int(CFG0["seed"]))
@@ -45,7 +16,6 @@ random.seed(int(CFG0["seed"]))
 # -----------------------------
 # Pygame window
 # -----------------------------
-WIDTH_TILES, HEIGHT_TILES = 12, 12
 TILE_SIZE = int(CFG0["tileSize"])
 WIDTH, HEIGHT = WIDTH_TILES * TILE_SIZE, HEIGHT_TILES * TILE_SIZE
 pygame.init()
@@ -71,150 +41,6 @@ COL_MONSTER = (151, 117, 250)
 ACTIONS = [(0, -1), (1, 0), (0, 1), (-1, 0)]
 A_UP, A_RIGHT, A_DOWN, A_LEFT = 0, 1, 2, 3
 ALL_ACTIONS = [A_UP, A_RIGHT, A_DOWN, A_LEFT]
-
-
-@dataclass
-class LevelSpec:
-    name: str
-    layout: List[str]
-    algo: str  # "q" or "sarsa"
-    monster_move_prob: float = 0.0
-    use_intrinsic: bool = False
-
-
-def normalized_layout(layout: List[str]) -> List[str]:
-    rows = [row.ljust(WIDTH_TILES)[:WIDTH_TILES] for row in layout[:HEIGHT_TILES]]
-    while len(rows) < HEIGHT_TILES:
-        rows.append(" " * WIDTH_TILES)
-    return rows
-
-
-def center_layout(rows: List[str]) -> List[str]:
-    blanks = max(0, HEIGHT_TILES - len(rows))
-    top = blanks // 2
-    bottom = blanks - top
-    return ([" " * WIDTH_TILES] * top) + rows + ([" " * WIDTH_TILES] * bottom)
-
-
-def make_levels() -> Dict[int, LevelSpec]:
-    level0 = normalized_layout(
-        center_layout(
-            [
-                "S           ",
-                "            ",
-                "        A   ",
-                "        A   ",
-                "        A   ",
-                "        A   ",
-                "        A   ",
-                "        A   ",
-            ]
-        )
-    )
-    level1 = normalized_layout(
-        center_layout(
-            [
-                "S   F   A   ",
-                " RRRR R R   ",
-                "     R F A  ",
-                " RRRR R R   ",
-                "     R F A  ",
-                " RRRR R R   ",
-                "            ",
-                "            ",
-            ]
-        )
-    )
-    level2 = normalized_layout(
-        center_layout(
-            [
-                "   S   A    ",
-                "  RRRR RRR  ",
-                "  K A   C   ",
-                "  RRRR R     ",
-                "   A   R    ",
-                "      R     ",
-                "   A        ",
-                "            ",
-            ]
-        )
-    )
-    level3 = normalized_layout(
-        center_layout(
-            [
-                "   S F A     ",
-                "  RRRRFRRR  ",
-                "  K   F C    ",
-                "  RRRR R     ",
-                " A   F   A   ",
-                " RRRR RRR   ",
-                "     A      ",
-                "            ",
-            ]
-        )
-    )
-    level4 = normalized_layout(
-        center_layout(
-            [
-                "   S M A     ",
-                "  RRRR RRR  ",
-                "    A   F   ",
-                "  RRRR R     ",
-                "    A  M    ",
-                "  RRRR RRR  ",
-                "     A      ",
-                "            ",
-            ]
-        )
-    )
-    level5 = normalized_layout(
-        center_layout(
-            [
-                "   S M A     ",
-                "  RRRR RRR  ",
-                "  K   F C    ",
-                "  RRRR R     ",
-                " A   F   A   ",
-                " RRRR RRR   ",
-                "   M   A    ",
-                "            ",
-            ]
-        )
-    )
-    level6 = normalized_layout(
-        center_layout(
-            [
-                "  S   A   A ",
-                "   RRRR R   ",
-                " K A   C    ",
-                "   RRRR R   ",
-                " K    A     ",
-                "   RRRR R   ",
-                "     A   C  ",
-                "            ",
-            ]
-        )
-    )
-    return {
-        0: LevelSpec("Level 0 - Apples (Q-learning)", level0, "q"),
-        1: LevelSpec("Level 1 - Hazards (SARSA)", level1, "sarsa"),
-        2: LevelSpec("Level 2 - Keys/Chest (Q-learning)", level2, "q"),
-        3: LevelSpec("Level 3 - Hazards + Chest (SARSA)", level3, "sarsa"),
-        4: LevelSpec("Level 4 - Monster Q-learning", level4, "q", monster_move_prob=0.4),
-        5: LevelSpec("Level 5 - Monster SARSA", level5, "sarsa", monster_move_prob=0.4),
-        6: LevelSpec(
-            "Level 6 - Intrinsic Reward",
-            level6,
-            "q",
-            monster_move_prob=0.0,
-            use_intrinsic=True,
-        ),
-    }
-
-
-LEVELS = make_levels()
-LEVEL_ORDER = sorted(LEVELS.keys())
-ALGO_NAMES = {"q": "Q-learning", "sarsa": "SARSA"}
 
 
 def log_episode(level_id: int, algo: str, ep: int, env_return: float, total_return: float, steps: int, out_dir: Path | None = None) -> None:
@@ -419,7 +245,7 @@ def sarsa_update(qtab: QTable, s, a, r, sp, ap, alpha, gamma):
 # -----------------------------
 # Drawing
 # -----------------------------
-def draw_grid(env: GridWorld, spec: LevelSpec, episode, step, epsilon, env_reward, total_reward, speed_label, intrinsic_label):
+def draw_grid(env: GridWorld, spec: LevelSpec, episode, step, epsilon, env_reward, total_reward, speed_label, intrinsic_label, paused: bool, started: bool):
     screen.fill(COL_BG)
     for x in range(env.w):
         for y in range(env.h):
@@ -460,13 +286,18 @@ def draw_grid(env: GridWorld, spec: LevelSpec, episode, step, epsilon, env_rewar
         border_radius=6,
     )
 
+    status_line = "Controls: V toggle speed, R reset, S start, T stop"
+    if paused and not started:
+        status_line = "Press S to start"
+    elif paused:
+        status_line = "Paused (press S to resume)"
     hud = [
         f"{spec.name} ({ALGO_NAMES[spec.algo]})",
         f"Ep {episode + 1}  step {step}  eps {epsilon:.3f}",
         f"Apples {env.remaining_apples()} | Chests {env.remaining_chests()} | Keys in hand {env.keys_in_hand}",
         f"Return env {env_reward:.2f} / total {total_reward:.2f}",
         f"Speed:{speed_label} | Intrinsic:{intrinsic_label}  I intrinsic (level 6)",
-        "Controls: V toggle speed, R reset, S start, T stop",
+        status_line,
         "Number keys 0-6 switch level, arrows to cycle",
     ]
     for i, t in enumerate(hud):
@@ -477,6 +308,32 @@ def draw_grid(env: GridWorld, spec: LevelSpec, episode, step, epsilon, env_rewar
 # -----------------------------
 # Training loop and controls
 # -----------------------------
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="GridWorld RL (Q-learning, SARSA, monsters, intrinsic reward)")
+    parser.add_argument("--level", type=int, default=0, help="Start at level id (0-6)")
+    return parser
+
+
+def init_episode(env: GridWorld, spec: LevelSpec, cfg: Dict[str, Any], qtab: QTable, ep: int) -> Tuple[Tuple, Optional[int], Dict[Tuple, int], float, float, int, float]:
+    s = env.reset()
+    visit_counts: Dict[Tuple, int] = defaultdict(int)
+    visit_counts[s] += 1
+    eps = linear_epsilon(ep, float(cfg["epsilonStart"]), float(cfg["epsilonEnd"]), int(cfg["epsilonDecayEpisodes"]))
+    a = epsilon_greedy(qtab, s, eps) if spec.algo == "sarsa" else None
+    return s, a, visit_counts, 0.0, 0.0, 0, eps
+
+
+def status_labels(visualize: bool, intrinsic_enabled: bool, spec: LevelSpec) -> Tuple[str, str]:
+    speed_label = "visual" if visualize else "fast"
+    intrinsic_label = "on" if intrinsic_enabled and spec.use_intrinsic else "off"
+    return speed_label, intrinsic_label
+
+
+def intrinsic_reward(cfg: Dict[str, Any], visit_counts: Dict[Tuple, int], state: Tuple) -> float:
+    scale = float(cfg.get("intrinsicScale", DEFAULT_CFG["intrinsicScale"]))
+    return scale / max(1, visit_counts[state])
+
+
 def run_training(start_level: int = 0):
     current_level = start_level if start_level in LEVELS else 0
     spec = LEVELS[current_level]
@@ -484,7 +341,8 @@ def run_training(start_level: int = 0):
     alpha = float(cfg["alpha"])
     gamma = float(cfg["gamma"])
     visualize, running = True, True
-    paused = False
+    paused = True
+    started = False
     env = GridWorld(spec.layout, monster_move_prob=spec.monster_move_prob)
     qtab = QTable()
     ep = 0
@@ -492,17 +350,7 @@ def run_training(start_level: int = 0):
     intrinsic_enabled = spec.use_intrinsic
 
     while running:
-        s = env.reset()
-        visit_counts: Dict[Tuple, int] = defaultdict(int)
-        visit_counts[s] += 1
-        ep_reward_env = 0.0
-        ep_reward_total = 0.0
-        steps = 0
-        eps = linear_epsilon(ep, float(cfg["epsilonStart"]), float(cfg["epsilonEnd"]), int(cfg["epsilonDecayEpisodes"]))
-        if spec.algo == "sarsa":
-            a = epsilon_greedy(qtab, s, eps)
-        else:
-            a = None
+        s, a, visit_counts, ep_reward_env, ep_reward_total, steps, eps = init_episode(env, spec, cfg, qtab, ep)
 
         while running:
             for event in pygame.event.get():
@@ -514,16 +362,10 @@ def run_training(start_level: int = 0):
                         visualize = not visualize
                     elif event.key == pygame.K_r:
                         qtab = QTable()
-                        s = env.reset()
-                        visit_counts.clear()
-                        visit_counts[s] += 1
-                        ep_reward_env = ep_reward_total = 0.0
-                        steps = 0
-                        eps = linear_epsilon(ep, float(cfg["epsilonStart"]), float(cfg["epsilonEnd"]), int(cfg["epsilonDecayEpisodes"]))
-                        if spec.algo == "sarsa":
-                            a = epsilon_greedy(qtab, s, eps)
+                        s, a, visit_counts, ep_reward_env, ep_reward_total, steps, eps = init_episode(env, spec, cfg, qtab, ep)
                     elif event.key == pygame.K_s:
                         paused = False
+                        started = True
                     elif event.key == pygame.K_t:
                         paused = True
                     elif event.key == pygame.K_i and current_level == 6:
@@ -550,21 +392,13 @@ def run_training(start_level: int = 0):
                 ep = 0
                 pending_level = None
                 intrinsic_enabled = spec.use_intrinsic
-                s = env.reset()
-                visit_counts.clear()
-                visit_counts[s] += 1
-                ep_reward_env = ep_reward_total = 0.0
-                steps = 0
-                eps = linear_epsilon(ep, float(cfg["epsilonStart"]), float(cfg["epsilonEnd"]), int(cfg["epsilonDecayEpisodes"]))
-                if spec.algo == "sarsa":
-                    a = epsilon_greedy(qtab, s, eps)
+                s, a, visit_counts, ep_reward_env, ep_reward_total, steps, eps = init_episode(env, spec, cfg, qtab, ep)
                 continue
             pending_level = None
 
             if paused:
-                speed_label = "visual" if visualize else "fast"
-                intrinsic_label = "on" if intrinsic_enabled and spec.use_intrinsic else "off"
-                draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label)
+                speed_label, intrinsic_label = status_labels(visualize, intrinsic_enabled, spec)
+                draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label, paused=True, started=started)
                 clock.tick(int(cfg["fpsVisual"]))
                 continue
 
@@ -572,10 +406,7 @@ def run_training(start_level: int = 0):
                 a = epsilon_greedy(qtab, s, eps)
                 res = env.step(a)
                 visit_counts[res.next_state] += 1
-                intrinsic = 0.0
-                if spec.use_intrinsic and intrinsic_enabled:
-                    n = visit_counts[res.next_state]
-                    intrinsic = float(cfg.get("intrinsicScale", DEFAULT_CFG["intrinsicScale"])) / max(1, n)
+                intrinsic = intrinsic_reward(cfg, visit_counts, res.next_state) if spec.use_intrinsic and intrinsic_enabled else 0.0
                 reward_for_update = res.reward + intrinsic
                 q_learning_update(qtab, s, a, reward_for_update, res.next_state, alpha, gamma)
                 s = res.next_state
@@ -584,10 +415,7 @@ def run_training(start_level: int = 0):
             else:
                 res = env.step(a)
                 visit_counts[res.next_state] += 1
-                intrinsic = 0.0
-                if spec.use_intrinsic and intrinsic_enabled:
-                    n = visit_counts[res.next_state]
-                    intrinsic = float(cfg.get("intrinsicScale", DEFAULT_CFG["intrinsicScale"])) / max(1, n)
+                intrinsic = intrinsic_reward(cfg, visit_counts, res.next_state) if spec.use_intrinsic and intrinsic_enabled else 0.0
                 ap = epsilon_greedy(qtab, res.next_state, eps)
                 reward_for_update = res.reward + intrinsic
                 sarsa_update(qtab, s, a, reward_for_update, res.next_state, ap, alpha, gamma)
@@ -597,18 +425,17 @@ def run_training(start_level: int = 0):
 
             steps += 1
 
-            speed_label = "visual" if visualize else "fast"
-            intrinsic_label = "on" if intrinsic_enabled and spec.use_intrinsic else "off"
+            speed_label, intrinsic_label = status_labels(visualize, intrinsic_enabled, spec)
             if visualize:
-                draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label)
+                draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label, paused=False, started=started)
                 clock.tick(int(cfg["fpsVisual"]))
             else:
                 if steps % 5 == 0:
-                    draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label)
+                    draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label, paused=False, started=started)
                 clock.tick(int(cfg["fpsFast"]))
 
             if res.done or steps >= int(cfg["maxStepsPerEpisode"]):
-                draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label)
+                draw_grid(env, spec, ep, steps, eps, ep_reward_env, ep_reward_total, speed_label, intrinsic_label, paused=False, started=started)
                 break
 
         log_episode(current_level, spec.algo, ep, ep_reward_env, ep_reward_total, steps)
@@ -620,7 +447,5 @@ def run_training(start_level: int = 0):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="GridWorld RL (Q-learning, SARSA, monsters, intrinsic reward)")
-    parser.add_argument("--level", type=int, default=0, help="Start at level id (0-6)")
-    args = parser.parse_args()
+    args = build_parser().parse_args()
     run_training(start_level=args.level)
