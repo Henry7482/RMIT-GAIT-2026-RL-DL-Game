@@ -154,12 +154,12 @@ REWARD_PPO_ROTATIONAL = {
 # DQN with Directional control (WASD-style)
 REWARD_DQN_DIRECTIONAL = {
     # Core objectives (same as rotation)
-    'destroy_enemy': 175.0,
+    'destroy_enemy': 170.0,
     'destroy_spawner': 180.0, 
     'phase_complete': 500.0,
     'clean_phase_bonus': 300.0,
     'hit_enemy': 30.0,
-    'hit_spawner': 7.0,
+    'hit_spawner': 5.0,
     'take_damage': -80.0,
     'death': -200.0,
     'shot_fired': -0.05,
