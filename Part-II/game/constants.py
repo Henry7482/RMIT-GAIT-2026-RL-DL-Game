@@ -154,25 +154,25 @@ REWARD_PPO_ROTATIONAL = {
 # DQN with Directional control (WASD-style)
 REWARD_DQN_DIRECTIONAL = {
     # Core objectives (same as rotation)
-    'destroy_enemy': 190.0,
-    'destroy_spawner': 350.0, 
+    'destroy_enemy': 175.0,
+    'destroy_spawner': 180.0, 
     'phase_complete': 500.0,
     'clean_phase_bonus': 300.0,
     'hit_enemy': 30.0,
-    'hit_spawner': 50.0,
+    'hit_spawner': 7.0,
     'take_damage': -80.0,
     'death': -200.0,
-    'shot_fired': 0.0,
+    'shot_fired': -0.05,
     'existence_penalty': -0.015,
 
     # Navigation rewards (same as rotation)
-    'potential_closer': 0.05,
+    'potential_closer': 0.1,
     'potential_further': 0.0,
     'orientation_closer': 0.1,     # Will auto-fire based on movement direction
     'orientation_further': 0.0,
 
     # Accuracy (same as rotation)
-    'accuracy_bonus': 0.2,
+    'accuracy_bonus':  0.2,
     'accuracy_threshold': 30.0,
 
     # Directional-specific stuck handling
@@ -215,4 +215,4 @@ PARTICLE_LIFETIME = 30
 PARTICLE_COUNT_EXPLOSION = 15
 PARTICLE_COUNT_HIT = 5
 
-IS_RANDOM = True
+IS_RANDOM = False

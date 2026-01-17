@@ -1,3 +1,5 @@
+log: directional_dqn/DQN_25
+
 # Pathfinder DQN v1.0 - Checkpoint
 
 **Timestamp:** January 16, 2026 - 14:30  

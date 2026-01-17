@@ -118,19 +118,20 @@ class Arena:
                 y = rng.uniform(margin, SCREEN_HEIGHT - margin)
 
             # Ensure not too close to player
-            dist_to_player = math.sqrt(
-                (x - self.player.x)**2 + (y - self.player.y)**2
-            )
-            if dist_to_player < 200:
-                # Retry with opposite edge
-                if edge == 'top':
-                    y = SCREEN_HEIGHT - margin
-                elif edge == 'bottom':
-                    y = margin
-                elif edge == 'left':
-                    x = SCREEN_WIDTH - margin
-                else:
-                    x = margin
+
+            # dist_to_player = math.sqrt(
+            #     (x - self.player.x)**2 + (y - self.player.y)**2
+            # )
+            # if dist_to_player < 200:
+            #     # Retry with opposite edge
+            #     if edge == 'top':
+            #         y = SCREEN_HEIGHT - margin
+            #     elif edge == 'bottom':
+            #         y = margin
+            #     elif edge == 'left':
+            #         x = SCREEN_WIDTH - margin
+            #     else:
+            #         x = margin
 
             self.spawners.append(Spawner(x, y))
 

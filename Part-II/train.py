@@ -227,7 +227,7 @@ def train(args):
             max_grad_norm=10.0,                       # Gradient clipping (DQN default)
             tensorboard_log=f"./logs/{args.env}_{args.algo}",
             policy_kwargs=dict(
-                net_arch=[256, 256, 128]                   # Match PPO network architecture
+                net_arch=[256, 256]                   # Match PPO network architecture
             ),
             verbose=1,
             seed=None,
