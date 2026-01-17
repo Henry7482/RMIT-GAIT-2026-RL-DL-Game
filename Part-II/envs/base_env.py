@@ -29,11 +29,11 @@ class BaseArenaEnv(gym.Env):
         'render_fps': FPS,
     }
 
-    def __init__(self, render_mode: Optional[str] = None):
+    def __init__(self, render_mode: Optional[str] = None, env_type: str = 'rotation'):
         super().__init__()
 
         self.render_mode = render_mode
-        self.arena = Arena()
+        self.arena = Arena(env_type=env_type)
 
         # Observation space: fixed-size vector
         self.observation_space = spaces.Box(

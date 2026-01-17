@@ -7,7 +7,7 @@ You need to implement the actual RL training logic using Stable Baselines3.
 
 Usage:
     python train.py --env rotation --algo ppo --timesteps 100000
-    python train.py --env directional --algo dqn --timesteps 500000
+    python3 train.py --env directional --algo dqn --timesteps 1000000
 """
 
 import sys
@@ -19,11 +19,6 @@ from datetime import datetime
 
 # Import environments to register them
 import envs
-
-# TODO: Uncomment these imports when implementing RL training
-# from stable_baselines3 import PPO, DQN
-# from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
-# from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 
 from envs.rotation_env import RotationArenaEnv
 from envs.directional_env import DirectionalArenaEnv
@@ -40,18 +35,7 @@ def create_env(env_type: str, render_mode: str = None):
 
 
 def train(args):
-    """
-    Main training function.
-
-    TODO: Implement the following:
-    1. Create vectorized environment with DummyVecEnv
-    2. Choose algorithm (PPO or DQN) based on args.algo
-    3. Configure neural network (at least one hidden layer)
-    4. Set up TensorBoard logging
-    5. Configure callbacks (evaluation, checkpoints)
-    6. Train the model
-    7. Save the final model
-    """
+    """Main training function."""
 
     print("=" * 60)
     print("Deep RL Arena - Training")
@@ -69,104 +53,213 @@ def train(args):
     env.close()
 
     # =========================================================================
-    # TODO: IMPLEMENT YOUR RL TRAINING LOGIC HERE
+    # ACTUAL TRAINING - REPLACE THE TODO SECTION WITH THIS
     # =========================================================================
-    #
-    # Example structure (uncomment and modify):
-    #
-    # # Create vectorized environment
-    # def make_env():
-    #     return create_env(args.env)
-    # vec_env = DummyVecEnv([make_env])
-    # vec_env = VecMonitor(vec_env)
-    #
-    # # Set up logging directory
-    # log_dir = f"./logs/{args.env}_{args.algo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    #
-    # # Create model
-    # if args.algo == 'ppo':
-    #     model = PPO(
-    #         "MlpPolicy",
-    #         vec_env,
-    #         learning_rate=args.lr,
-    #         n_steps=2048,
-    #         batch_size=64,
-    #         n_epochs=10,
-    #         gamma=0.99,
-    #         policy_kwargs=dict(net_arch=[256, 256]),  # Two hidden layers
-    #         tensorboard_log=log_dir,
-    #         verbose=1,
-    #     )
-    # elif args.algo == 'dqn':
-    #     model = DQN(
-    #         "MlpPolicy",
-    #         vec_env,
-    #         learning_rate=args.lr,
-    #         buffer_size=100000,
-    #         learning_starts=10000,
-    #         batch_size=64,
-    #         gamma=0.99,
-    #         exploration_fraction=0.2,
-    #         exploration_final_eps=0.05,
-    #         policy_kwargs=dict(net_arch=[256, 256]),
-    #         tensorboard_log=log_dir,
-    #         verbose=1,
-    #     )
-    #
-    # # Set up callbacks
-    # eval_env = create_env(args.env)
-    # eval_callback = EvalCallback(
-    #     eval_env,
-    #     best_model_save_path=f"./models/{args.env}_{args.algo}_best",
-    #     log_path=log_dir,
-    #     eval_freq=10000,
-    #     deterministic=True,
-    #     render=False,
-    # )
-    #
-    # checkpoint_callback = CheckpointCallback(
-    #     save_freq=50000,
-    #     save_path=f"./models/{args.env}_{args.algo}_checkpoints",
-    #     name_prefix=args.algo,
-    # )
-    #
-    # # Train
-    # model.learn(
-    #     total_timesteps=args.timesteps,
-    #     callback=[eval_callback, checkpoint_callback],
-    #     progress_bar=True,
-    # )
-    #
-    # # Save final model
-    # model_path = f"./models/{args.env}_{args.algo}_final"
-    # model.save(model_path)
-    # print(f"Model saved to {model_path}")
-    #
-    # vec_env.close()
-    # eval_env.close()
-    #
+    
+    from stable_baselines3 import PPO, DQN
+    from stable_baselines3.common.env_util import make_vec_env
+    
+    print("\nCreating vectorized environment (4 parallel envs)...")
+    
+    # This creates 4 independent games running on separate CPU cores
+    vec_env = make_vec_env(
+        lambda: create_env(args.env), 
+        n_envs=4  # Change to 8 if you have a powerful CPU
+    )
+    
+
+    # 13:38 10/1/2026
+    # Linear learning rate schedule: starts at initial_lr and decays to 0
+    # 14:53 10/1/2025 - make it decay to 1e-5 only.
+    def linear_schedule(initial_value: float):
+        """
+        Linear learning rate schedule.
+        
+        :param initial_value: Initial learning rate.
+        :return: schedule that computes current learning rate depending on remaining progress
+        """
+        def func(progress_remaining: float) -> float:
+            """
+            Progress will decrease from 1 (beginning) to 0 (end).
+            Learning rate will linearly decrease from initial_value to 1e-5.
+            
+            :param progress_remaining: Remaining progress (1.0 at start, 0.0 at end)
+            :return: Current learning rate
+            """
+            min_lr = 2e-5   # 15:41 10/1/2025 - Increase from 1e-5 to 2e-5 (Cause watching PPO_31, the mean rew seems to start rising again (potentially escaping local minima))
+                            # and timestep increases to 2m5
+            return min_lr + progress_remaining * (initial_value - min_lr)
+        
+        return func
+    
+    
+    def linear_schedule_3m(initial_value: float, total_timesteps: int):
+        """
+        Linear learning rate schedule that decays to 2e-5 at exactly 3M timesteps,
+        then stays constant at 2e-5 afterward.
+
+        :param initial_value: Initial learning rate.
+        :param total_timesteps: Total training timesteps.
+        :return: schedule that computes current learning rate depending on remaining progress
+        """
+        decay_timesteps = 3_000_000  # Decay ends at 3M timesteps
+        min_lr = 2e-5
+
+        def func(progress_remaining: float) -> float:
+            """
+            Progress will decrease from 1 (beginning) to 0 (end).
+            Learning rate will linearly decrease from initial_value to 2e-5 at 3M timesteps,
+            then stay at 2e-5.
+
+            :param progress_remaining: Remaining progress (1.0 at start, 0.0 at end)
+            :return: Current learning rate
+            """
+            # Calculate current timestep
+            current_timestep = total_timesteps * (1 - progress_remaining)
+
+            if current_timestep >= decay_timesteps:
+                # After 3M timesteps, keep at minimum learning rate
+                return min_lr
+            else:
+                # Linear decay from initial_value to min_lr over first 3M timesteps
+                decay_progress = current_timestep / decay_timesteps
+                return initial_value - decay_progress * (initial_value - min_lr)
+
+        return func
+
+
+    def step_schedule_2m(total_timesteps: int):
+        """
+        Step learning rate schedule that keeps 1e-4 for first 2M timesteps,
+        then switches to 3e-5 afterward.
+
+        :param total_timesteps: Total training timesteps.
+        :return: schedule that computes current learning rate depending on remaining progress
+        """
+        switch_timesteps = 2_000_000  # Switch at 2M timesteps
+        high_lr = 1e-4
+        low_lr = 3e-5
+
+        def func(progress_remaining: float) -> float:
+            """
+            Progress will decrease from 1 (beginning) to 0 (end).
+            Learning rate will be 1e-4 for first 2M timesteps, then 3e-5 after that.
+
+            :param progress_remaining: Remaining progress (1.0 at start, 0.0 at end)
+            :return: Current learning rate
+            """
+            # Calculate current timestep
+            current_timestep = total_timesteps * (1 - progress_remaining)
+
+            if current_timestep >= switch_timesteps:
+                # After 2M timesteps, use low learning rate
+                return low_lr
+            else:
+                # Before 2M timesteps, use high learning rate
+                return high_lr
+
+        return func
+
+    # =========================================================================
+    # ALGORITHM BRANCHING: PPO vs DQN
     # =========================================================================
 
-    print("\n" + "=" * 60)
-    print("PLACEHOLDER: Training logic not yet implemented")
-    print("See the TODO comments in this file for implementation guide")
-    print("=" * 60)
+    if args.algo == 'ppo':
+        # PPO: Uses vectorized environments (on-policy)
+        print("Creating PPO model with hyperparameters...")
+        model = PPO(
+            policy="MlpPolicy",
+            env=vec_env,
+            learning_rate=linear_schedule_3m(args.lr, args.timesteps),  # Decay to 2e-5 at 3M, then constant
+            n_steps=4096,              # Number of steps to run for each environment per update (4096 * 4 = 16384 steps per update!)
+            batch_size=256,            # Minibatch size for each gradient update (increased for parallel data)
+            n_epochs=10,               # Number of epoch when optimizing the surrogate loss
+            gamma=0.99,                # Discount factor
+            gae_lambda=0.95,           # Factor for trade-off of bias vs variance for GAE
+            clip_range=0.2,            # Clipping parameter for PPO
+            clip_range_vf=None,        # Clipping parameter for value function (None = no clipping)
+            ent_coef=0.10,             # Entropy coefficient for exploration
+            vf_coef=0.5,               # Value function coefficient for loss calculation
+            max_grad_norm=0.5,         # Maximum value for gradient clipping
+            use_sde=False,             # Whether to use State Dependent Exploration
+            sde_sample_freq=-1,        # Sample a new noise matrix every n steps (-1 = only at rollout start)
+            target_kl=None,            # Target KL divergence threshold (None = no limit)
+            tensorboard_log=f"./logs/{args.env}_{args.algo}",
+            policy_kwargs=dict(
+                net_arch=[dict(pi=[256, 256], vf=[256, 256])]  # Policy and value network architecture
+            ),
+            verbose=1,
+            seed=None,                 # Random seed
+            device="auto"              # Device: 'cpu', 'cuda', or 'auto'
+        )
 
-    # Quick test: run a few random steps
-    print("\nTesting environment with random actions...")
-    env = create_env(args.env)
-    obs, info = env.reset()
-    total_reward = 0
+        print(f"\nTraining PPO for {args.timesteps} timesteps...")
+        model.learn(total_timesteps=args.timesteps)
 
-    for step in range(100):
-        action = env.action_space.sample()
-        obs, reward, terminated, truncated, info = env.step(action)
-        total_reward += reward
-        if terminated or truncated:
-            break
+        # Save model
+        os.makedirs("./models", exist_ok=True)
+        model.save(f"./models/{args.env}_{args.algo}_test")
+        print(f"\n✓ Model saved to ./models/{args.env}_{args.algo}_test.zip")
 
-    print(f"Random agent test: {step + 1} steps, reward: {total_reward:.2f}")
-    env.close()
+        vec_env.close()
+
+    elif args.algo == 'dqn':
+        # DQN: Uses single environment with replay buffer (off-policy)
+        print("\nCreating single environment for DQN (off-policy)...")
+        dqn_env = create_env(args.env)
+
+        print("Creating DQN model with hyperparameters...")
+        model = DQN(
+            policy="MlpPolicy",
+            env=dqn_env,
+            learning_rate=linear_schedule_3m(args.lr, args.timesteps),
+            buffer_size=100_000,                      # Replay buffer capacity
+            learning_starts=10_000,                   # Steps before learning begins
+            batch_size=128,                           # Minibatch size for gradient updates
+            tau=0.005,                                # Soft update coefficient for target network
+            gamma=0.99,                               # Discount factor (match PPO)
+            train_freq=(4, "step"),                   # Train every 4 environment steps
+            gradient_steps=1,                         # Gradient steps per training call
+            target_update_interval=1000,              # Steps between target network updates
+            exploration_fraction=0.3,                 # Fraction of training for epsilon decay
+            exploration_initial_eps=1.0,             # Starting epsilon (full exploration)
+            exploration_final_eps=0.05,              # Final epsilon (5% random actions)
+            max_grad_norm=10.0,                       # Gradient clipping (DQN default)
+            tensorboard_log=f"./logs/{args.env}_{args.algo}",
+            policy_kwargs=dict(
+                net_arch=[256, 256]                   # Match PPO network architecture
+            ),
+            verbose=1,
+            seed=None,
+            device="auto"
+        )
+
+        print(f"\nTraining DQN for {args.timesteps} timesteps...")
+        print(f"  Buffer size: 100,000")
+        print(f"  Epsilon: 1.0 -> 0.05 over 30% of training")
+        print(f"  Learning starts after: 10,000 steps")
+
+        # Setup checkpoint callback to save model every 100k steps
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        
+        os.makedirs("./models", exist_ok=True)
+        checkpoint_callback = CheckpointCallback(
+            save_freq=300000,
+            save_path="./models/auto_checkpoints",
+            name_prefix="directional_dqn_best",
+            save_replay_buffer=False,
+            save_vecnormalize=False,
+            verbose=1
+        )
+        
+        model.learn(total_timesteps=args.timesteps, callback=checkpoint_callback)
+
+        # Save model
+        os.makedirs("./models", exist_ok=True)
+        model.save(f"./models/{args.env}_{args.algo}_test")
+        print(f"\n✓ Model saved to ./models/{args.env}_{args.algo}_test.zip")
+
+        dqn_env.close()
 
 
 def main():
@@ -179,8 +272,8 @@ def main():
                        help='RL algorithm to use')
     parser.add_argument('--timesteps', type=int, default=100000,
                        help='Total training timesteps')
-    parser.add_argument('--lr', type=float, default=3e-4,
-                       help='Learning rate')
+    parser.add_argument('--lr', type=float, default=1e-4,
+                       help='Initial learning rate (will be scheduled)')
 
     args = parser.parse_args()
     train(args)
