@@ -21,7 +21,7 @@ class RotationArenaEnv(BaseArenaEnv):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(env_type='rotation', **kwargs)
+        super().__init__(env_type='rotation', is_random=True, **kwargs)
 
         # 5 discrete actions: nothing, thrust, rotate_left, rotate_right, shoot
         self.action_space = spaces.Discrete(5)

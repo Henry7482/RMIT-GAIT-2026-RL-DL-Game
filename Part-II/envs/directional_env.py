@@ -22,7 +22,7 @@ class DirectionalArenaEnv(BaseArenaEnv):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(env_type='directional', **kwargs)
+        super().__init__(env_type='directional', is_random=False, **kwargs)
 
         # 6 discrete actions: nothing, up, down, left, right, shoot
         self.action_space = spaces.Discrete(6)

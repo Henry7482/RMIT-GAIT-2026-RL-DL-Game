@@ -27,7 +27,6 @@ from stable_baselines3 import PPO, DQN
 
 
 def create_env(env_type: str, render_mode: str = 'human'):
-    """Create the appropriate environment."""
     if env_type == 'rotation':
         return RotationArenaEnv(render_mode=render_mode)
     elif env_type == 'directional':
@@ -37,18 +36,11 @@ def create_env(env_type: str, render_mode: str = 'human'):
 
 
 def load_model(model_path: str):
-    """
-    Load a trained model from disk.
-
-    TODO: Implement model loading
-    """
-    #Determine algorithm from filename or try both
     if 'ppo' in model_path.lower():
         return PPO.load(model_path)
     elif 'dqn' in model_path.lower():
         return DQN.load(model_path)
     else:
-        # Try PPO first, then DQN
         try:
             return PPO.load(model_path)
         except:
@@ -57,7 +49,6 @@ def load_model(model_path: str):
 
 
 def evaluate(args):
-    """Run evaluation episodes with visualization."""
 
     print("=" * 60)
     print("Deep RL Arena - Evaluation")
@@ -70,10 +61,8 @@ def evaluate(args):
         print(f"Model: {args.model}")
     print("=" * 60)
 
-    # Create environment with rendering
     env = create_env(args.env, render_mode='human')
 
-    # Load model or use random
     model = None
     if not args.random:
         try:
@@ -84,7 +73,6 @@ def evaluate(args):
             print("Falling back to random actions...")
             args.random = True
 
-    # Run evaluation episodes
     episode_rewards = []
     episode_lengths = []
 
@@ -97,21 +85,16 @@ def evaluate(args):
         print(f"\nEpisode {episode + 1}/{args.episodes}")
 
         while not done:
-            # Get action
             if args.random:
                 action = env.action_space.sample()
             else:
                 action, _ = model.predict(obs, deterministic=args.deterministic)
 
-            # Take step
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             steps += 1
             done = terminated or truncated
 
-            # Render is handled by environment
-
-            # Optional delay for visibility
             if args.delay > 0:
                 time.sleep(args.delay / 1000.0)
 
@@ -121,12 +104,10 @@ def evaluate(args):
         print(f"  Steps: {steps}, Reward: {total_reward:.2f}")
         print(f"  Phase: {info['phase']}, Score: {info['score']}")
 
-        # Pause between episodes
         if episode < args.episodes - 1:
             print("  Press any key in game window to continue...")
             time.sleep(1)
 
-    # Print summary
     print("\n" + "=" * 60)
     print("Evaluation Summary")
     print("=" * 60)

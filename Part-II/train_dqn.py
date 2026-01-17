@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import argparse
 from datetime import datetime
 
-# Import environments to regi sster them
+# Import environments to register them
 import envs
 
 from stable_baselines3 import DQN
@@ -30,54 +30,37 @@ from envs.directional_env import DirectionalArenaEnv
 
 
 def linear_schedule(initial_value: float, final_value: float = None):
-    """
-    Linear learning rate schedule.
-    
-    Args:
-        initial_value: Starting learning rate
-        final_value: Ending learning rate (default: 10% of initial)
-    
-    Returns:
-        A function that computes the current learning rate given progress.
-    """
+    """Linear learning rate schedule from initial_value to final_value (default: 10% of initial)."""
     if final_value is None:
-        final_value = initial_value * 0.1  # Decay to 10% by default
-    
+        final_value = initial_value * 0.1
+
     def func(progress_remaining: float) -> float:
-        """
-        Progress remaining goes from 1.0 (start) to 0.0 (end).
-        """
         return final_value + progress_remaining * (initial_value - final_value)
-    
+
     return func
 
 
 class GameMetricsCallback(BaseCallback):
-    """
-    Custom callback to log game-specific metrics (score, phase) to TensorBoard.
-    """
+    """Logs game metrics (score, phase) to TensorBoard."""
     def __init__(self, verbose=0):
         super().__init__(verbose)
         self.episode_scores = []
         self.episode_phases = []
-        
+
     def _on_step(self) -> bool:
-        # Check if episode ended (done signal)
         infos = self.locals.get('infos', [])
         dones = self.locals.get('dones', [])
-        
+
         for i, (info, done) in enumerate(zip(infos, dones)):
             if done:
-                # Log score and phase at end of episode
                 if 'score' in info:
                     self.episode_scores.append(info['score'])
                 if 'phase' in info:
                     self.episode_phases.append(info['phase'])
-        
+
         return True
-    
+
     def _on_rollout_end(self) -> None:
-        # Log average metrics when we have data
         if self.episode_scores:
             self.logger.record('game/score_mean', sum(self.episode_scores) / len(self.episode_scores))
             self.episode_scores = []
@@ -87,34 +70,23 @@ class GameMetricsCallback(BaseCallback):
 
 
 def create_env(env_type: str, render_mode: str = None, curriculum: bool = False, total_timesteps: int = None):
-    """Create the appropriate environment.
-    
-    Args:
-        env_type: 'rotation' or 'directional'
-        render_mode: Optional render mode
-        curriculum: If True, wrap with curriculum learning
-        total_timesteps: Required if curriculum=True
-    """
     if env_type == 'rotation':
         env = RotationArenaEnv(render_mode=render_mode)
     elif env_type == 'directional':
         env = DirectionalArenaEnv(render_mode=render_mode)
     else:
         raise ValueError(f"Unknown environment type: {env_type}")
-    
+
     if curriculum:
         from envs.curriculum_wrapper import CurriculumWrapper
         if total_timesteps is None:
             raise ValueError("total_timesteps required when curriculum=True")
         env = CurriculumWrapper(env, total_timesteps)
-    
+
     return env
 
 
 def train(args):
-    """
-    Main training function for DQN.
-    """
     print("=" * 60)
     print("Deep Q-Network (DQN) Training")
     print("=" * 60)

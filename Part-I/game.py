@@ -13,9 +13,6 @@ from levels import ALGO_NAMES, LEVELS, LEVEL_ORDER, LevelSpec, WIDTH_TILES, HEIG
 CFG0 = load_config(0)
 random.seed(int(CFG0["seed"]))
 
-# -----------------------------
-# Pygame window
-# -----------------------------
 TILE_SIZE = int(CFG0["tileSize"])
 WIDTH, HEIGHT = WIDTH_TILES * TILE_SIZE, HEIGHT_TILES * TILE_SIZE
 pygame.init()
@@ -55,9 +52,6 @@ def log_episode(level_id: int, algo: str, ep: int, env_return: float, total_retu
         f.write(f"{ep},{env_return},{total_return},{steps}\n")
 
 
-# -----------------------------
-# Environment
-# -----------------------------
 @dataclass
 class StepResult:
     next_state: Tuple
@@ -199,9 +193,6 @@ class GridWorld:
         return StepResult(self.encode_state(), reward, done, {})
 
 
-# -----------------------------
-# Q-table and learning helpers
-# -----------------------------
 class QTable:
     def __init__(self):
         self.q: Dict[Tuple, float] = {}
@@ -242,9 +233,6 @@ def sarsa_update(qtab: QTable, s, a, r, sp, ap, alpha, gamma):
     qtab.set(s, a, current + alpha * (target - current))
 
 
-# -----------------------------
-# Drawing
-# -----------------------------
 def draw_grid(env: GridWorld, spec: LevelSpec, episode, step, epsilon, env_reward, total_reward, speed_label, intrinsic_label, paused: bool, started: bool):
     screen.fill(COL_BG)
     for x in range(env.w):
@@ -305,9 +293,6 @@ def draw_grid(env: GridWorld, spec: LevelSpec, episode, step, epsilon, env_rewar
     pygame.display.flip()
 
 
-# -----------------------------
-# Training loop and controls
-# -----------------------------
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GridWorld RL (Q-learning, SARSA, monsters, intrinsic reward)")
     parser.add_argument("--level", type=int, default=0, help="Start at level id (0-6)")

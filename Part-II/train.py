@@ -2,12 +2,9 @@
 """
 Training script for Deep RL agents.
 
-This is a placeholder with the structure for training.
-You need to implement the actual RL training logic using Stable Baselines3.
-
 Usage:
-    python train.py --env rotation --algo ppo --timesteps 100000
-    python3 train.py --env directional --algo dqn --timesteps 1000000
+    python train.py --env rotation --algo ppo --timesteps 5000000
+    python train.py --env directional --algo dqn --timesteps 5000000
 """
 
 import sys
@@ -25,7 +22,6 @@ from envs.directional_env import DirectionalArenaEnv
 
 
 def create_env(env_type: str, render_mode: str = None):
-    """Create the appropriate environment."""
     if env_type == 'rotation':
         return RotationArenaEnv(render_mode=render_mode)
     elif env_type == 'directional':
@@ -35,8 +31,6 @@ def create_env(env_type: str, render_mode: str = None):
 
 
 def train(args):
-    """Main training function."""
-
     print("=" * 60)
     print("Deep RL Arena - Training")
     print("=" * 60)
@@ -46,126 +40,57 @@ def train(args):
     print(f"Learning rate: {args.lr}")
     print("=" * 60)
 
-    # Create environment
     env = create_env(args.env)
     print(f"Observation space: {env.observation_space}")
     print(f"Action space: {env.action_space}")
     env.close()
 
-    # =========================================================================
-    # ACTUAL TRAINING - REPLACE THE TODO SECTION WITH THIS
-    # =========================================================================
-    
     from stable_baselines3 import PPO, DQN
     from stable_baselines3.common.env_util import make_vec_env
-    
+
     print("\nCreating vectorized environment (4 parallel envs)...")
-    
-    # This creates 4 independent games running on separate CPU cores
+
     vec_env = make_vec_env(
-        lambda: create_env(args.env), 
-        n_envs=4  # Change to 8 if you have a powerful CPU
+        lambda: create_env(args.env),
+        n_envs=4
     )
     
 
-    # 13:38 10/1/2026
-    # Linear learning rate schedule: starts at initial_lr and decays to 0
-    # 14:53 10/1/2025 - make it decay to 1e-5 only.
     def linear_schedule(initial_value: float):
-        """
-        Linear learning rate schedule.
-        
-        :param initial_value: Initial learning rate.
-        :return: schedule that computes current learning rate depending on remaining progress
-        """
+        """Linear learning rate schedule from initial_value to 2e-5."""
         def func(progress_remaining: float) -> float:
-            """
-            Progress will decrease from 1 (beginning) to 0 (end).
-            Learning rate will linearly decrease from initial_value to 1e-5.
-            
-            :param progress_remaining: Remaining progress (1.0 at start, 0.0 at end)
-            :return: Current learning rate
-            """
-            min_lr = 2e-5   # 15:41 10/1/2025 - Increase from 1e-5 to 2e-5 (Cause watching PPO_31, the mean rew seems to start rising again (potentially escaping local minima))
-                            # and timestep increases to 2m5
+            min_lr = 2e-5
             return min_lr + progress_remaining * (initial_value - min_lr)
-        
         return func
     
     
     def linear_schedule_3m(initial_value: float, total_timesteps: int):
-        """
-        Linear learning rate schedule that decays to 2e-5 at exactly 3M timesteps,
-        then stays constant at 2e-5 afterward.
-
-        :param initial_value: Initial learning rate.
-        :param total_timesteps: Total training timesteps.
-        :return: schedule that computes current learning rate depending on remaining progress
-        """
-        decay_timesteps = 3_000_000  # Decay ends at 3M timesteps
+        """Decays linearly to 2e-5 at 3M timesteps, then stays constant."""
+        decay_timesteps = 3_000_000
         min_lr = 2e-5
 
         def func(progress_remaining: float) -> float:
-            """
-            Progress will decrease from 1 (beginning) to 0 (end).
-            Learning rate will linearly decrease from initial_value to 2e-5 at 3M timesteps,
-            then stay at 2e-5.
-
-            :param progress_remaining: Remaining progress (1.0 at start, 0.0 at end)
-            :return: Current learning rate
-            """
-            # Calculate current timestep
             current_timestep = total_timesteps * (1 - progress_remaining)
-
             if current_timestep >= decay_timesteps:
-                # After 3M timesteps, keep at minimum learning rate
                 return min_lr
             else:
-                # Linear decay from initial_value to min_lr over first 3M timesteps
                 decay_progress = current_timestep / decay_timesteps
                 return initial_value - decay_progress * (initial_value - min_lr)
-
         return func
 
 
     def step_schedule_2m(total_timesteps: int):
-        """
-        Step learning rate schedule that keeps 1e-4 for first 2M timesteps,
-        then switches to 3e-5 afterward.
-
-        :param total_timesteps: Total training timesteps.
-        :return: schedule that computes current learning rate depending on remaining progress
-        """
-        switch_timesteps = 2_000_000  # Switch at 2M timesteps
+        """1e-4 for first 2M timesteps, then 3e-5 afterward."""
+        switch_timesteps = 2_000_000
         high_lr = 1e-4
         low_lr = 3e-5
 
         def func(progress_remaining: float) -> float:
-            """
-            Progress will decrease from 1 (beginning) to 0 (end).
-            Learning rate will be 1e-4 for first 2M timesteps, then 3e-5 after that.
-
-            :param progress_remaining: Remaining progress (1.0 at start, 0.0 at end)
-            :return: Current learning rate
-            """
-            # Calculate current timestep
             current_timestep = total_timesteps * (1 - progress_remaining)
-
-            if current_timestep >= switch_timesteps:
-                # After 2M timesteps, use low learning rate
-                return low_lr
-            else:
-                # Before 2M timesteps, use high learning rate
-                return high_lr
-
+            return low_lr if current_timestep >= switch_timesteps else high_lr
         return func
 
-    # =========================================================================
-    # ALGORITHM BRANCHING: PPO vs DQN
-    # =========================================================================
-
     if args.algo == 'ppo':
-        # PPO: Uses vectorized environments (on-policy)
         print("Creating PPO model with hyperparameters...")
         model = PPO(
             policy="MlpPolicy",

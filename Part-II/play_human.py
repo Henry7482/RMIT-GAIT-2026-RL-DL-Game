@@ -40,22 +40,17 @@ def main():
                        help='Use directional controls instead of rotation')
     args = parser.parse_args()
 
-    # Initialize pygame
     pygame.init()
     pygame.display.set_caption("Deep RL Arena - Human Play")
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 24)
 
-    # Create arena
-    arena = Arena()
-
-    # Control mode
+    arena = Arena(is_random=True)
     use_directional = args.directional
 
     running = True
     while running:
-        # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -68,12 +63,10 @@ def main():
                     use_directional = not use_directional
                     print(f"Switched to {'Directional' if use_directional else 'Rotation'} mode")
 
-        # Handle continuous key presses
         if not arena.done:
             keys = pygame.key.get_pressed()
 
             if use_directional:
-                # Directional controls
                 dx, dy = 0, 0
                 if keys[pygame.K_w] or keys[pygame.K_UP]:
                     dy = -1
@@ -89,7 +82,6 @@ def main():
                 if keys[pygame.K_SPACE]:
                     arena.player_shoot()
             else:
-                # Rotation controls
                 if keys[pygame.K_w] or keys[pygame.K_UP]:
                     arena.player.apply_thrust()
                 if keys[pygame.K_a] or keys[pygame.K_LEFT]:
@@ -99,19 +91,15 @@ def main():
                 if keys[pygame.K_SPACE]:
                     arena.player_shoot()
 
-        # Update game
         if not arena.done:
             arena.update()
 
-        # Render
         arena.render(screen)
 
-        # Draw control mode indicator
         mode_text = f"Mode: {'Directional' if use_directional else 'Rotation'} (TAB to switch)"
         mode_surface = font.render(mode_text, True, COLORS['ui_accent'])
         screen.blit(mode_surface, (20, SCREEN_HEIGHT - 55))
 
-        # Draw controls help
         if use_directional:
             controls = "WASD/Arrows: Move | SPACE: Shoot | R: Reset | ESC: Quit"
         else:

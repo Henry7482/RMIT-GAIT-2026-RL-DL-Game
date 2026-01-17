@@ -16,7 +16,6 @@ from .constants import (
     PARTICLE_COUNT_EXPLOSION, PARTICLE_COUNT_HIT,
     ENEMY_HEALTH, PHASE_ENEMY_HEALTH_MULT,
     PLAYER_MAX_VELOCITY,
-    IS_RANDOM
 )
 from .entities import Player, Enemy, Spawner, Projectile, Particle
 
@@ -26,8 +25,9 @@ class Arena:
     Main arena class that manages all game state.
     """
 
-    def __init__(self, env_type: str = 'rotation'):
+    def __init__(self, env_type: str = 'rotation', is_random: bool = False):
         self.env_type = env_type  # 'rotation' or 'directional'
+        self.is_random = is_random  # Whether to use random spawner positions
 
         # Select appropriate reward dictionary based on environment type
         if env_type == 'rotation':
@@ -66,21 +66,17 @@ class Arena:
         # Track last movement action for directional stuck handling (0=none, 1=up, 2=down, 3=left, 4=right)
         self.last_movement_action = 0
 
-        # Initialize
         self.reset()
 
     def reset(self) -> None:
         """Reset the arena to initial state."""
-        # Create player at center
         self.player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
 
-        # Clear all entities
         self.enemies.clear()
         self.spawners.clear()
         self.projectiles.clear()
         self.particles.clear()
 
-        # Reset state
         self.phase = 1
         self.step_count = 0
         self.score = 0
@@ -92,8 +88,7 @@ class Arena:
         self.last_rotation_action = 0
         self.last_movement_action = 0
 
-        # Create initial spawners
-        rng = random if IS_RANDOM else random.Random(self.phase)
+        rng = random if self.is_random else random.Random(self.phase)
         self._spawn_spawners(INITIAL_SPAWNERS, rng)
 
     def _spawn_spawners(self, count: int, rng) -> None:
@@ -143,7 +138,7 @@ class Arena:
         if self.phase <= MAX_PHASE:
             # Spawn more spawners for next phase
             new_spawners = INITIAL_SPAWNERS + (self.phase - 1) * SPAWNERS_PER_PHASE
-            rng = random if IS_RANDOM else random.Random(self.phase)
+            rng = random if self.is_random else random.Random(self.phase)
             self._spawn_spawners(new_spawners, rng)
 
     def update(self) -> float:
@@ -155,28 +150,23 @@ class Arena:
             return 0.0
 
         self.step_count += 1
-        self.events = {}  # Reset events
+        self.events = {}
         reward = 0.0
 
-        # Update player
         self.player.update()
 
-        # Update enemies
         for enemy in self.enemies:
             enemy.update(self.player)
 
-        # Update spawners and spawn enemies
         for spawner in self.spawners:
             if spawner.alive and spawner.update():
                 new_enemy = spawner.spawn_enemy(self.phase)
                 self.enemies.append(new_enemy)
 
-        # Update projectiles
         for projectile in self.projectiles[:]:
             if not projectile.update():
                 self.projectiles.remove(projectile)
 
-        # Update particles
         for particle in self.particles[:]:
             if not particle.update():
                 self.particles.remove(particle)
@@ -194,13 +184,11 @@ class Arena:
                 dy = nearest_spawner.y - self.player.y
                 angle_to_spawner = math.degrees(math.atan2(dy, dx))
                 relative_angle = angle_to_spawner - self.player.angle
-                # Normalize to [-180, 180]
                 while relative_angle > 180:
                     relative_angle -= 360
                 while relative_angle < -180:
                     relative_angle += 360
-                
-                # Grant accuracy bonus if aimed at target
+
                 if abs(relative_angle) < self.rewards['accuracy_threshold']:
                     reward += self.rewards['accuracy_bonus']
 
@@ -214,31 +202,26 @@ class Arena:
                 (nearest_spawner.y - self.player.y)**2
             )
             
-            # Calculate angle to spawner for orientation reward
             dx = nearest_spawner.x - self.player.x
             dy = nearest_spawner.y - self.player.y
             angle_to_spawner = math.degrees(math.atan2(dy, dx))
             relative_angle = angle_to_spawner - self.player.angle
-            # Normalize to [-180, 180]
             while relative_angle > 180:
                 relative_angle -= 360
             while relative_angle < -180:
                 relative_angle += 360
-            
+
             current_angle_diff = abs(relative_angle)
-            
-            # Potential-based reward: reward getting closer, punish getting further
+
             if self.previous_spawner_distance is not None:
                 if current_dist < self.previous_spawner_distance:
                     reward += self.rewards['potential_closer']
                 else:
                     reward += self.rewards['potential_further']
-            
+
             self.previous_spawner_distance = current_dist
-            
-            # === ORIENTATION REWARDS ===
-            # Normal: Guide rotation toward spawner
-            # Stuck: Override - reward ANY rotation, penalize direction changes
+
+            # ORIENTATION REWARDS: Guide rotation toward spawner when not stuck
             if self.previous_spawner_angle is not None:
                 orientation_diff = current_angle_diff - self.previous_spawner_angle
                 
