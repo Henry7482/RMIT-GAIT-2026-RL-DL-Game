@@ -10,8 +10,7 @@ GridWorld reinforcement learning demo with Q-learning and SARSA, multiple levels
 - `Part-I/plot_levels01.py` plots Level 0 vs Level 1 learning curves from CSV logs.
 - `Part-I/plot_monsters.py` plots Level 4 vs Level 5 learning curves from CSV logs.
 - `Part-I/plot_level6.py` plots Level 6 intrinsic reward on vs off from CSV logs.
-- `Part-I/logs/*.csv` training logs written by `game.py`.
-- `**/__pycache__/` Python bytecode caches (auto-generated).
+- `Part-I/logs/*.csv` training logs written by `game.py`
 
 # How to run
 
